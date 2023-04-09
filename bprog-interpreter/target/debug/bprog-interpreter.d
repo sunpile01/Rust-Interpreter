@@ -1,0 +1,1 @@
+C:\Users\aleks\rust-asssignment2\bprog-interpreter\target\debug\bprog-interpreter.exe: C:\Users\aleks\rust-asssignment2\bprog-interpreter\src\lib.rs C:\Users\aleks\rust-asssignment2\bprog-interpreter\src\main.rs
