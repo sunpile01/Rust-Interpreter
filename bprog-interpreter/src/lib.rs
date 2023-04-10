@@ -38,8 +38,8 @@ pub mod interpreter {
                     // Searched a bit online and found that comparing one float subtracted by another to epsilon is better
                     // than using == which can cause problems
                     (V::VFloat(a), V::VFloat(b), OpBinary::Equality) => Ok(V::VBool((a - b).abs() < f32::EPSILON)),
-                    (V::VBool(a), V::VBool(b), OpBinary::Equality) => Ok(V::VBool(a == b)),
                     
+                    (V::VBool(a), V::VBool(b), OpBinary::Equality) => Ok(V::VBool(a == b)),
                     (V::VBool(a), V::VBool(b), OpBinary::And) => Ok(V::VBool(a && b)),
                     (V::VBool(a), V::VBool(b), OpBinary::Or) => Ok(V::VBool(a || b)),
 
@@ -131,6 +131,9 @@ pub mod interpreter {
                 }
                 Ok(V::VInt(i)) => {       
                     *i = -*i;                 
+                }
+                Ok(V::VFloat(f)) => {       
+                    *f = -*f;                 
                 }
                 Ok(_) => {
                     println!("Error: print not supported for other types than VString!");

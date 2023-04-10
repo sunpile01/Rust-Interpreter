@@ -8,7 +8,7 @@ fn main() {
 
     loop {
         print!("Bprog-Interpreter> ");
-        io::stdout().flush().unwrap(); // Flush the stdout buffer to display the prompt immediately
+        io::stdout().flush().unwrap(); 
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap(); // Get the input and store it in the input variable
@@ -22,7 +22,7 @@ fn main() {
         .iter() // Iterator for the stack items
         .map(|v| match v { // For every item in the stack pattern match on value 
             Ok(types::WValue::VString(s)) => format!("{}", s),
-            Ok(num) => format!("{}", num),  // Transforms the value to a string
+            Ok(num) => format!("{}", num),  
             Err(err) => format!("Error: {}", err),
         })
         .collect::<Vec<String>>()     // Collects the transformed values into a vector
