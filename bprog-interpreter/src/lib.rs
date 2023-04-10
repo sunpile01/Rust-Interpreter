@@ -148,13 +148,46 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], ignore, stack);
     }
 
+    /// Parse a string from stack to a integer and puts it back onto the stack
+    pub fn op_parse_num(stack: &mut Stack, ignore: bool, parse_float: bool, tokens: &[&str]) {
+        if let Some(top_element) = stack.get_mut(0) {
+            match top_element {
+                Ok(V::VString(s)) => {
+                    let s_no_qoutes = &s[1..s.len() - 1];   // Remove the surrounding qoutes
+                    if parse_float {
+                        if let Ok(f) = s_no_qoutes.parse::<f32>() {
+                            *top_element = Ok(V::VFloat(f)); // Replace the VString with the parsed VFloat
+                        } else {
+                            println!("Error: Unable to parse string to float!");
+                        }
+                    } else {
+                        if let Ok(i) = s_no_qoutes.parse::<i32>() {
+                            *top_element = Ok(V::VInt(i)); // Replace the VString with the parsed VInt
+                        } else {
+                            println!("Error: Unable to parse string to integer!");
+                        }
+                    }
+                }
+                Ok(_) => {
+                    println!("Error: Tried to parse a non supported type, only works for VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack!");
+                }
+            }
+        } else {
+            println!("Error: stack is empty, no top element to parse!");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+
     /// Adds a String to the stack string is denoted by " <input> "
     pub fn op_quotes(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
         let mut new_string = String::new();
         let mut index = 0;
         let initial_stack_len = stack.len();
         
-        // enumerate returns a tuple with the index and token
+        // enumerate returns a tuple with the index and token skips the first "
         for (i, token) in tokens.iter().enumerate().skip(1) {
             if *token == "\"" {                  // Token ends with "
                 new_string.push_str(&token[..token.len() - 1]);     
@@ -162,7 +195,8 @@ pub mod interpreter {
                 break;
             } else {
                 new_string.push_str(token);     // Push token to the new string
-                if !tokens.get(i + 1).map_or(false, |next_token| next_token.ends_with("\"")) {
+                // not the ending " add a space between each token
+                if tokens.get(i + 1).map_or(false, |t| *t == "\"") {   // map_or lets me return false if i+1 does not exist
                     new_string.push(' ');
                 }
             }
@@ -175,7 +209,7 @@ pub mod interpreter {
         stack.truncate(initial_stack_len); // Restore the stack to its initial length
         // Skip processing all the tokens after the opening quote
         parser::process_tokens(&tokens[tokens.len()..], ignore, stack);
-    }
+        }
     }
 }
 
@@ -213,6 +247,8 @@ pub mod parser {
                 "dup" if !ignore => interpreter::op_dup(stack, ignore, &tokens),
                 "swap" if !ignore => interpreter::op_swap(stack, ignore, &tokens),
                 "print" if !ignore => interpreter::op_print(stack, ignore, &tokens),
+                "parseInteger" if !ignore => interpreter::op_parse_num(stack, ignore, false, &tokens),
+                "parseFloat" if !ignore => interpreter::op_parse_num(stack, ignore, true, &tokens),
                 "pop" if !ignore => {
                     interpreter::op_pop(stack);
                     process_tokens(&tokens[1..], ignore, stack);
