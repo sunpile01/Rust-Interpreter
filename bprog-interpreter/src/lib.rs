@@ -1,38 +1,9 @@
 pub mod interpreter {
     use super::types::Stack;
     use std::str::FromStr;
-    /// Processes the tokens sent by process_input and handles the different type of tokens
-    /// Calls itself recursively with the next token in the list until there are not tokens left
-    pub fn process_tokens(tokens: &[&str], ignore: bool, stack: Stack) -> Stack {
-        if tokens.is_empty() {
-            stack
-        } else {
-            let (new_ignore, new_stack) = match tokens[0] {
-                "\"" => (true, stack),
-                "*" if !ignore => {
-                    let new_stack = op_mult(stack);
-                    (ignore, new_stack)
-                }
-                "+" if !ignore => {
-                    let new_stack = op_add(stack);
-                    (ignore, new_stack)
-                }
-                "pop" if !ignore => {
-                    let new_stack = op_pop(stack);
-                    (ignore, new_stack)
-                }
-                _ if !ignore => {
-                    let new_stack = op_num(stack, tokens[0]);
-                    (ignore, new_stack)
-                }
-                _ => (ignore, stack),
-            };
     
-            process_tokens(&tokens[1..], new_ignore, new_stack)
-        }
-    }
     /// Removes the top two elements from the stack, multiplies them and inserts the sum of the two numbers
-    fn op_mult(mut stack: Stack) -> Stack {
+    pub fn op_mult(mut stack: Stack) -> Stack {
         if stack.len() < 2 {
             stack.insert(0, Err("Not enough arguments for *".to_string()));
         } else {
@@ -43,7 +14,7 @@ pub mod interpreter {
         stack
     }
     /// Removes the top two elements from the stack, adds them and inserts the sum of the two numbers
-    fn op_add(mut stack: Stack) -> Stack {
+    pub fn op_add(mut stack: Stack) -> Stack {
         if stack.len() < 2 {
             stack.insert(0, Err("Not enough arguments for +".to_string()));
         } else {
@@ -54,7 +25,7 @@ pub mod interpreter {
         stack
     }
     /// Popps an item of the stack
-    fn op_pop(mut stack: Stack) -> Stack {
+    pub fn op_pop(mut stack: Stack) -> Stack {
         if stack.is_empty() {
             stack.insert(0, Err("Not enough arguments for pop".to_string()));
         } else {
@@ -63,7 +34,7 @@ pub mod interpreter {
         stack
     }
     /// Turns the token into a float, if the token is not a float it is an error
-    fn op_num(mut stack: Stack, token: &str) -> Stack {
+    pub fn op_num(mut stack: Stack, token: &str) -> Stack {
         match f32::from_str(token) {            // Pattern matches the token 
             Ok(num) => {
                 stack.insert(0, Ok(num));   // if it is a float insert it to the stack
@@ -83,7 +54,8 @@ pub mod interpreter {
 /// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
 /// To execute 
 pub mod parser {
-    use super::interpreter::process_tokens; 
+    use super::interpreter;
+    use super::types::Stack; 
 
     pub fn process_input(line: &str) -> String {
         let tokens = line.split_whitespace().collect::<Vec<&str>>();    // Get all words seperated by space
@@ -99,6 +71,36 @@ pub mod parser {
             .join(" ")                    // Joins the vector of string into one string with spaces seperating
     }
 
+    /// Processes the tokens sent by process_input and handles the different type of tokens
+    /// Calls itself recursively with the next token in the list until there are not tokens left
+    pub fn process_tokens(tokens: &[&str], ignore: bool, stack: Stack) -> Stack {
+        if tokens.is_empty() {
+            stack
+        } else {
+            let (new_ignore, new_stack) = match tokens[0] {
+                "\"" => (true, stack),
+                "*" if !ignore => {
+                    let new_stack = interpreter::op_mult(stack);
+                    (ignore, new_stack)
+                }
+                "+" if !ignore => {
+                    let new_stack = interpreter::op_add(stack);
+                    (ignore, new_stack)
+                }
+                "pop" if !ignore => {
+                    let new_stack = interpreter::op_pop(stack);
+                    (ignore, new_stack)
+                }
+                _ if !ignore => {
+                    let new_stack = interpreter::op_num(stack, tokens[0]);
+                    (ignore, new_stack)
+                }
+                _ => (ignore, stack),
+            };
+    
+            process_tokens(&tokens[1..], new_ignore, new_stack)
+        }
+    }
 
 }
 
