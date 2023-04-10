@@ -54,27 +54,20 @@ pub mod interpreter {
     }
 }
 
-/// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
-/// To execute 
+ 
 pub mod parser {
     use super::interpreter;
     use super::types::{Stack, WValue, OpArithmetic};
-
-    pub fn process_input(line: &str) -> String {
-        let tokens = line.split_whitespace().collect::<Vec<&str>>();    // Get all symbols seperated by space
-        // Process the token inputs and stack contains Result values, either f32 variable or error
-        let stack = process_tokens(&tokens, false, vec![]);
-        stack       
-            .iter() // Iterator for the stack items
-            .map(|v| match v {  // For every item in the stack pattern match on value 
-                Ok(WValue::VString(s)) => format!("\"{}\"", s),
-                Ok(num) => format!("{}", num),  // Transforms the value to a string
-                Err(err) => format!("Error: {}", err),
-            })
-            .collect::<Vec<String>>()     // Collects the transformed values into a vector
-            .join(" ")                    // Joins the vector of string into one string with spaces seperating
+    
+    /// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
+    /// execute the corresponding code depending on the tokens. 
+    pub fn process_input(line: &str, mut stack: Stack) -> Stack {
+        let tokens = line.split_whitespace().collect::<Vec<&str>>(); // Get all symbols separated by space
+        // Process the token inputs and stack contains Result values, either WValue type or error
+        stack = process_tokens(&tokens, false, stack);
+        stack
     }
-
+    
     /// Processes the tokens sent by process_input and handles the different type of tokens
     /// Calls itself recursively with the next token in the list until there are not tokens left
     pub fn process_tokens(tokens: &[&str], ignore: bool, stack: Stack) -> Stack {
