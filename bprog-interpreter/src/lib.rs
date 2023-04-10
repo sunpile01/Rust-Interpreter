@@ -52,7 +52,27 @@ pub mod interpreter {
             }
         }
     }
-    // Adds a String to the stack string is denoted by " <input> "
+    /// Duplicates the top element of the stack
+    pub fn op_dup(stack: &mut Stack){
+        if (stack.len() >= 1){
+            let top_element = stack[0].clone();
+            stack.push(top_element);
+        }
+        else {
+            println!("Error: No elemets on the stack to duplicate!");
+        }
+    }
+
+    pub fn op_swap(stack: &mut Stack) {
+        if (stack.len() >= 2){
+            stack.swap(0, 1);
+        }
+        else {
+            println!("Error: Need atleast two elements to perform swap!");
+        }
+    }
+
+    /// Adds a String to the stack string is denoted by " <input> "
     pub fn op_quotes(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
         let mut new_string = String::new();
         let mut index = 0;
@@ -106,6 +126,8 @@ pub mod parser {
                 "-" if !ignore => exectue_arithmetic_op(stack, OpArithmetic::Subtract, ignore, &tokens),
                 "/" if !ignore => exectue_arithmetic_op(stack, OpArithmetic::Divide, ignore, &tokens),
                 "\"" if !ignore => interpreter::op_quotes(stack, ignore, &tokens), 
+                "dup" if !ignore => interpreter::op_dup(stack),
+                "swap" if !ignore => interpreter::op_swap(stack),
                 "pop" if !ignore => {
                     interpreter::op_pop(stack);
                     process_tokens(&tokens[1..], ignore, stack);
