@@ -2,7 +2,7 @@ mod lib;
 
 use crate::lib::parser;
 fn main() {
-    let input = "5 3 + 7 *";
+    let input = "True False +";
     let output = parser::process_input(input);
     println!("Output: {}", output);
 }
