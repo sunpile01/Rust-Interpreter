@@ -53,23 +53,46 @@ pub mod interpreter {
         }
     }
     /// Duplicates the top element of the stack
-    pub fn op_dup(stack: &mut Stack){
-        if (stack.len() >= 1){
+    pub fn op_dup(stack: &mut Stack, tokens: &[&str], ignore: bool){
+        if stack.len() >= 1 {
             let top_element = stack[0].clone();
             stack.push(top_element);
         }
         else {
             println!("Error: No elemets on the stack to duplicate!");
         }
-    }
 
-    pub fn op_swap(stack: &mut Stack) {
-        if (stack.len() >= 2){
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+    /// Swaps the order of the top two elements on the stack
+    pub fn op_swap(stack: &mut Stack, tokens: &[&str], ignore: bool) {
+        if stack.len() >= 2 {
             stack.swap(0, 1);
         }
         else {
             println!("Error: Need atleast two elements to perform swap!");
         }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+
+    /// Prints the top element on the stack, works only for String types
+    pub fn op_print(stack: &mut Stack, tokens: &[&str], ignore: bool){
+        if let Some(top_element) = stack.get(0) {       // Get top element if there is one 
+            match top_element {
+                Ok(V::VString(s)) => {                  // Top element is of type String
+                    println!("{}", s);
+                }
+                Ok(_) => {
+                    println!("Error: print not supported for other types than VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack.");
+                }
+            }
+        } else {
+            println!("Error: stack is empty, no top element to print!");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
     }
 
     /// Adds a String to the stack string is denoted by " <input> "
@@ -128,6 +151,7 @@ pub mod parser {
                 "\"" if !ignore => interpreter::op_quotes(stack, ignore, &tokens), 
                 "dup" if !ignore => interpreter::op_dup(stack),
                 "swap" if !ignore => interpreter::op_swap(stack),
+                "print" if !ignore => interpreter::op_print(stack),
                 "pop" if !ignore => {
                     interpreter::op_pop(stack);
                     process_tokens(&tokens[1..], ignore, stack);
@@ -177,6 +201,7 @@ pub mod types {
         VFloat (f32),
         VBool (bool),
         VString (String),
+        VOther (String)
     }
     // To display the wrapped types as strings
     impl fmt::Display for WValue {
@@ -186,6 +211,7 @@ pub mod types {
                 WValue::VFloat(n) => write!(f, "{}", n),
                 WValue::VBool(b) => write!(f, "{}", b),
                 WValue::VString(s) => write!(f, "{}", s),
+                WValue::VOther(o) => write!(f, "{}", o),
             }
         }
     }
@@ -198,8 +224,10 @@ pub mod types {
                 Ok(WValue::VFloat(num))
             } else if let Ok(b) = bool::from_str(s) {
                 Ok(WValue::VBool(b))
-            } else {
+            } else if s.starts_with("\"") && s.ends_with("\"") {
                 Ok(WValue::VString(s.to_string()))
+            } else {
+                Ok(WValue::VOther(s.to_string()))
             }
         }
     }
