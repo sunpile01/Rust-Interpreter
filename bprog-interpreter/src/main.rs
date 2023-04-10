@@ -11,25 +11,23 @@ fn main() {
         io::stdout().flush().unwrap(); // Flush the stdout buffer to display the prompt immediately
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input).unwrap(); // Get the input and store it in the input variable
 
-        if input.trim() == "exit" {
+        if input.trim() == "exit" {                 // Exit the program
             break;
         }
+        parser::process_input(&input, &mut stack);
 
-        stack = parser::process_input(&input, stack);
-
-        
         let output: String = stack
         .iter() // Iterator for the stack items
         .map(|v| match v { // For every item in the stack pattern match on value 
-            Ok(types::WValue::VString(s)) => format!("\"{}\"", s),
+            Ok(types::WValue::VString(s)) => format!("{}", s),
             Ok(num) => format!("{}", num),  // Transforms the value to a string
             Err(err) => format!("Error: {}", err),
         })
         .collect::<Vec<String>>()     // Collects the transformed values into a vector
         .join(", ");                  // Joins the vector of string into one string with commas separating
 
-    println!("Output: [{}]", output);
+    println!("Output: [{}]", output);   // Print the formatted output
     }
 }

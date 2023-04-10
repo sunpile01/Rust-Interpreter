@@ -1,11 +1,4 @@
 # assignment-2
-    pub enum Value {
-        VInt(i32),
-        VFloat(f32),
-        VBool(bool),
-        VString(String),
-    }
-
 
 ## Getting started
 
