@@ -178,10 +178,70 @@ pub mod interpreter {
         }
         parser::process_tokens(&tokens[1..], ignore, stack);
     }
-
+    /// Returns the first element from a list if the first stack element is a list
     pub fn op_head(stack: &mut Stack, ignore: bool, tokens: &[&str]){
-
+        if let Some(V::VList(list)) = stack.get(0){ // if top element exists and is a VList
+            if !list.is_empty() {
+                
+            } else {
+                println!("Error: List is empty, cant return an element");
+            }
+        }
+        else {
+            println!("Error: Stack empty or top element not a list");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
     }
+
+    /// Returns the last element from a list if the first stack element is a list
+    pub fn op_tail(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+        if let Some(V::VList(list)) = stack.get(0) {    // if top element exists and is a VList
+            if !list.is_empty() {
+                
+            } else {
+                println!("Error: List is empty, cant return an element");
+            }
+        } else {
+            println!("Error: Stack empty or top element not a list");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+    /// Checks if the top element on the stack is a list. If it is a list and it is empty,
+    ///  it inserts false into the stack, if it is not empty it inserts true.
+    pub fn op_empty(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+        if let Some(V::VList(list)) = stack.get(0){
+            stack.insert(0, V::VBool(list.is_empty()));
+        } else {
+            println!("Error: Stack empty or top element not a list");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+
+    /// Checks if the top element on the stack is a list. If it is a list it inserts the length of the list
+    pub fn op_length(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+        if let Some(V::VList(list)) = stack.get(0){
+            stack.insert(0, V::VInt(list.len() as i32));
+        } else {
+            println!("Error: Stack empty or top element not a list");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+
+    pub fn op_cons (stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+        if stack.len() >= 2 {
+            let item = stack.remove(1);
+            if let Some(V::VList(list)) = stack.get_mut(0) {
+                list.insert(0, item);
+            } else {
+                println!("Error: Second element is not a list!");
+                stack.insert(1, item);                          // Insert the item we removed.
+            }
+        } else {
+            println!("Error: Not enough elements on the stack to perform cons.");
+        }
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    }
+
     /// Parse a string from stack to a integer and puts it back onto the stack
     pub fn op_parse_num(stack: &mut Stack, ignore: bool, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
@@ -394,6 +454,10 @@ pub mod parser {
                 "words" if !ignore => interpreter::op_words(stack, ignore, &tokens),
 
                 "head" if !ignore => interpreter::op_head(stack, ignore, &tokens),
+                "tail" if !ignore => interpreter::op_tail(stack, ignore, &tokens),
+                "empty" if !ignore => interpreter::op_empty(stack, ignore, &tokens),
+                "length" if !ignore => interpreter::op_length(stack, ignore, &tokens),
+                "cons" if !ignore => interpreter::op_cons(stack, ignore, &tokens),
                 "pop" if !ignore => {
                     interpreter::op_pop(stack);
                     process_tokens(&tokens[1..], ignore, stack);
