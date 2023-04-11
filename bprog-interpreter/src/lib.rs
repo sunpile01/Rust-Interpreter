@@ -1,6 +1,4 @@
 pub mod interpreter {
-    use std::string;
-
     use super::parser;
 
     use super::types::{Stack, WValue as V, OpBinary};
@@ -122,6 +120,15 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], ignore, stack);
     }
 
+    /// Reads user input and adds it to the stack as a VString
+    pub fn op_read(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+        use std::io;                                            // Only function that uses IO
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap().to_string(); // Get the input and store it in the input variable
+        input = input.trim_end().to_string();                   // Remove \n and turn to string
+        stack.insert(0, Ok(V::VString(format!("\"{}\"", input))));  // Add it to stack with ""
+        parser::process_tokens(&tokens[1..], ignore, stack);
+    } 
     /// Changes the top element to the not of it
     pub fn op_not(stack: &mut Stack, ignore: bool, tokens: &[&str]){
         if let Some(top_element) = stack.get_mut(0) {
@@ -353,12 +360,17 @@ pub mod parser {
                 "&&" if !ignore => exectue_binary_op(stack, OpBinary::And, ignore, &tokens),
                 "||" if !ignore => exectue_binary_op(stack, OpBinary::Or, ignore, &tokens),
                 "not" if !ignore => interpreter::op_not(stack, ignore, &tokens),
+
                 "\"" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "\"".to_string()), 
                 "[" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "[".to_string()), 
-                "{" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens,"{".to_string()), 
+                "{" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens,"{".to_string()),
+
                 "dup" if !ignore => interpreter::op_dup(stack, ignore, &tokens),
                 "swap" if !ignore => interpreter::op_swap(stack, ignore, &tokens),
+
                 "print" if !ignore => interpreter::op_print(stack, ignore, &tokens),
+                "read" if !ignore => interpreter::op_read(stack, ignore, &tokens),
+                
                 "parseInteger" if !ignore => interpreter::op_parse_num(stack, ignore, false, &tokens),
                 "parseFloat" if !ignore => interpreter::op_parse_num(stack, ignore, true, &tokens),
                 "pop" if !ignore => {
