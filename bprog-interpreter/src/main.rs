@@ -21,13 +21,12 @@ fn main() {
         let output: String = stack
         .iter() // Iterator for the stack items
         .map(|v| match v { // For every item in the stack pattern match on value 
-            Ok(types::WValue::VString(s)) => format!("{}", s),
-            Ok(num) => format!("{}", num),  
-            Err(err) => format!("Error: {}", err),
+            types::WValue::VString(s) => format!("{}", s),
+            num => format!("{}", num),  
         })
         .collect::<Vec<String>>()     // Collects the transformed values into a vector
         .join(", ");                  // Joins the vector of string into one string with commas separating
 
-    println!("Output: [{}]", output);   // Print the formatted output
+    println!("Stack: [{}]", output);   // Print the formatted output
     }
 }

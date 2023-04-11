@@ -4,56 +4,50 @@ pub mod interpreter {
     use super::types::{Stack, WValue as V, OpBinary};
     
     /// Does the arithmetic operation sent as a parameter on the top two elements of the stack
-    pub fn op_binary(stack: &mut Stack, op: OpBinary, ignore: bool, tokens: &[&str]) {
+    pub fn op_binary(stack: &mut Stack, op: OpBinary) -> Result<V, String> {
         if stack.len() < 2 {
-            println!("Error: The stack needs minimum two elements for binary operation!");
+            Err(format!("Not enough arguments for {:?}", op))
         } else {
             let b = stack[0].clone();       // mutable copy
             let a = stack[1].clone();
-            let mut succesfull = true;
             // Mathces the types of the top two elements on the stack with the opperation
-            match (a, b, op) {
-                // Here type a matches type b
-                (V::VInt(a), V::VInt(b), OpBinary::Add) => stack.insert(0, V::VInt(a + b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::Add) => stack.insert(0, V::VFloat(a + b)),
+            let result = a.and_then(|a_val| b.and_then(|b_val| {
+                match (a_val, b_val, op) {
+                    // Here type a matches type b
+                    (V::VInt(a), V::VInt(b), OpBinary::Add) => Ok(V::VInt(a + b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::Add) => Ok(V::VFloat(a + b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::Subtract) => stack.insert(0, V::VInt(a - b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::Subtract) => stack.insert(0, V::VFloat(a - b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::Subtract) => Ok(V::VInt(a - b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::Subtract) => Ok(V::VFloat(a - b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::Multiply) => stack.insert(0, V::VInt(a * b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a * b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::Multiply) => Ok(V::VInt(a * b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::Multiply) => Ok(V::VFloat(a * b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a / b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::IDivide) => Ok(V::VInt(a / b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::FDivide) => Ok(V::VFloat(a / b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::RGreater) => Ok(V::VBool(a < b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::RGreater) => Ok(V::VBool(a < b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a > b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a > b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::LGreater) => Ok(V::VBool(a > b)),
+                    (V::VFloat(a), V::VFloat(b), OpBinary::LGreater) => Ok(V::VBool(a > b)),
 
-                (V::VInt(a), V::VInt(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
-                // Searched a bit online and found that comparing one float subtracted by another to epsilon is better
-                // than using == which can cause problems
-                (V::VFloat(a), V::VFloat(b), OpBinary::Equality) => stack.insert(0, V::VBool((a - b).abs() < f32::EPSILON)),
-                
-                (V::VBool(a), V::VBool(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
-                (V::VBool(a), V::VBool(b), OpBinary::And) => stack.insert(0, V::VBool(a && b)),
-                (V::VBool(a), V::VBool(b), OpBinary::Or) => stack.insert(0, V::VBool(a || b)),
+                    (V::VInt(a), V::VInt(b), OpBinary::Equality) => Ok(V::VBool(a == b)),
+                    // Searched a bit online and found that comparing one float subtracted by another to epsilon is better
+                    // than using == which can cause problems
+                    (V::VFloat(a), V::VFloat(b), OpBinary::Equality) => Ok(V::VBool((a - b).abs() < f32::EPSILON)),
+                    
+                    (V::VBool(a), V::VBool(b), OpBinary::Equality) => Ok(V::VBool(a == b)),
+                    (V::VBool(a), V::VBool(b), OpBinary::And) => Ok(V::VBool(a && b)),
+                    (V::VBool(a), V::VBool(b), OpBinary::Or) => Ok(V::VBool(a || b)),
 
-                // Allowed operations where types do not fully match
-                // TODO
-                _ => {
-                    println!("The types of the top two elements are not compatible for {:?} operation", op);
-                    succesfull = false;
+                    // Allowed operations where types do not fully match
+                    // TODO
+                    _ => Err(format!("The type is not supported for {:?} operation", op)),
                 }
-            }
-            if succesfull{
-                stack.remove(1);
-                stack.remove(1);
-            }
+            }));
+            result
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
     }   
     
     /// Popps an item of the stack
@@ -68,11 +62,11 @@ pub mod interpreter {
     /// Turns the token into a WValue, if the token is not a WValue it is an error
     pub fn op_num(stack: &mut Stack, token: &str) {
         match V::from_string(token) {            // Pattern matches the token 
-            value => {
-                stack.insert(0, value);   // if it is a valid type insert it to the stack
+            Ok(value) => {
+                stack.insert(0, Ok(value));   // if it is a valid type insert it to the stack
             }
-            _ => {              // Insert error to the stack
-                println!("Error: not supported type!");
+            Err(_) => {  // Insert error to the stack
+                stack.insert( 0, Err(format!("Error when parsing, expected a WValue,  got: {}", token)));
             }
         }
     }
@@ -105,13 +99,16 @@ pub mod interpreter {
     pub fn op_print(stack: &mut Stack, ignore: bool, tokens: &[&str]){
         if let Some(top_element) = stack.get(0) {       // Get top element if there is one 
             match top_element {
-                V::VString(s) => {                  // Top element is of type String
+                Ok(V::VString(s)) => {                  // Top element is of type String
                     println!("{}", s);
                     // We check that there is an element above so do not need to use the Result return type
                     stack.remove(0);                    // Remove top element after printing it
                 }
-                _ => {
+                Ok(_) => {
                     println!("Error: print not supported for other types than VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack.");
                 }
             }
         } else {
@@ -126,14 +123,14 @@ pub mod interpreter {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap().to_string(); // Get the input and store it in the input variable
         input = input.trim_end().to_string();                   // Remove \n and turn to string
-        stack.insert(0, V::VString(format!("\"{}\"", input)));  // Add it to stack with ""
+        stack.insert(0, Ok(V::VString(format!("\"{}\"", input))));  // Add it to stack with ""
         parser::process_tokens(&tokens[1..], ignore, stack);
     } 
 
     pub fn op_words(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get(0){
             match top_element {
-                V::VString(s) => {                      // Top element is of type String
+                Ok(V::VString(s)) => {                      // Top element is of type String
                     let s_no_qoutes = &s[1..s.len() - 1];       // remove ""
                     let string_tokens = s_no_qoutes.split_whitespace().collect::<Vec<&str>>();
                     let mut new_elements: Vec<V> = Vec::new();
@@ -142,10 +139,13 @@ pub mod interpreter {
                         new_elements.push(V::VString(format!("\"{}\"", token)));
                 }
                     stack.remove(0);
-                    stack.insert(0, V::VList(new_elements));    // Insert the list with the vector elements
+                    stack.insert(0, Ok(V::VList(new_elements)));    // Insert the list with the vector elements
                 }
-                _ => {
+                Ok(_) => {
                     println!("Error: print not supported for other types than VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack.");
                 }
             }
         } else {
@@ -160,17 +160,20 @@ pub mod interpreter {
     pub fn op_not(stack: &mut Stack, ignore: bool, tokens: &[&str]){
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
-                V::VBool(b) => {       
+                Ok(V::VBool(b)) => {       
                     *b = !*b;                 
                 }
-                V::VInt(i) => {       
+                Ok(V::VInt(i)) => {       
                     *i = -*i;                 
                 }
-                V::VFloat(f) => {       
+                Ok(V::VFloat(f)) => {       
                     *f = -*f;                 
                 }
-                _ => {
+                Ok(_) => {
                     println!("Error: print not supported for other types than VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack!");
                 }
             }
         } else {
@@ -186,24 +189,27 @@ pub mod interpreter {
     pub fn op_parse_num(stack: &mut Stack, ignore: bool, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
-                V::VString(s) => {
+                Ok(V::VString(s)) => {
                     let s_no_qoutes = &s[1..s.len() - 1];   // Remove the surrounding qoutes
                     if parse_float {
                         if let Ok(f) = s_no_qoutes.parse::<f32>() {
-                            *top_element = V::VFloat(f); // Replace the VString with the parsed VFloat
+                            *top_element = Ok(V::VFloat(f)); // Replace the VString with the parsed VFloat
                         } else {
                             println!("Error: Unable to parse string to float!");
                         }
                     } else {
                         if let Ok(i) = s_no_qoutes.parse::<i32>() {
-                            *top_element = V::VInt(i); // Replace the VString with the parsed VInt
+                            *top_element = Ok(V::VInt(i)); // Replace the VString with the parsed VInt
                         } else {
                             println!("Error: Unable to parse string to integer!");
                         }
                     }
                 }
-                _ => {
+                Ok(_) => {
                     println!("Error: Tried to parse a non supported type, only works for VString!");
+                }
+                Err(_) => {
+                    println!("Error: there is an error value at the top of the stack!");
                 }
             }
         } else {
@@ -259,7 +265,9 @@ pub mod interpreter {
                             let mut sub_stack: Stack = Vec::new(); // Dummy stack to send to op_enclosed
                             op_enclosed(&mut sub_stack, ignore, &sub_tokens, "\"".to_string());
                             if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
-                                new_elements.push(value.clone());
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
                             }
                             i = j + 1;
                             // TODO make the helper function work to remove duplicated code
@@ -277,7 +285,9 @@ pub mod interpreter {
                             let mut sub_stack: Stack = Vec::new();
                             op_enclosed(&mut sub_stack, ignore, &sub_tokens, "{".to_string());
                             if let Some(value) = sub_stack.get(0) {
-                                new_elements.push(value.clone());
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
                             }
                             i = j + 1;
                             // REALLY BADLY NEED THIS HELPER FUNCTION
@@ -295,7 +305,9 @@ pub mod interpreter {
                             let mut sub_stack: Stack = Vec::new();
                             op_enclosed(&mut sub_stack, ignore, &sub_tokens, "[".to_string());
                             if let Some(value) = sub_stack.get(0) {
-                                 new_elements.push(value.clone());
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
                             }
                             i = j + 1;
                         } else {
@@ -311,9 +323,9 @@ pub mod interpreter {
         }
         if index > 0 && tokens[index] == end_char {
             match end_char.as_str() {
-                "\"" => stack.insert(0, V::VString(format!("{}{}{}", start_char, new_string, end_char))),
-                "]"  => stack.insert(0, V::VList(new_elements)),
-                "}"  => stack.insert(0, V::VCodeBlock(format!("{}{}{}", start_char, new_string, end_char))),
+                "\"" => stack.insert(0, Ok(V::VString(format!("{}{}{}", start_char, new_string, end_char)))),
+                "]"  => stack.insert(0, Ok(V::VList(new_elements))),
+                "}"  => stack.insert(0, Ok(V::VCodeBlock(format!("{}{}{}", start_char, new_string, end_char)))),
                 _ => panic!("Invalid starting symbol"), // Just to satisfy exhaustive enforcement
             }
         } else {
@@ -367,16 +379,16 @@ pub mod parser {
     pub fn process_tokens(tokens: &[&str], ignore: bool, stack: &mut Stack) {
         if !tokens.is_empty() {
             match tokens[0] {
-                "*" if !ignore => interpreter::op_binary(stack, OpBinary::Multiply, ignore, &tokens), 
-                "+" if !ignore => interpreter::op_binary(stack, OpBinary::Add, ignore, &tokens), 
-                "-" if !ignore => interpreter::op_binary(stack, OpBinary::Subtract, ignore, &tokens),
-                "/" if !ignore => interpreter::op_binary(stack, OpBinary::FDivide, ignore, &tokens),
-                "div" if !ignore => interpreter::op_binary(stack, OpBinary::IDivide, ignore, &tokens),
-                "<" if !ignore => interpreter::op_binary(stack, OpBinary::RGreater, ignore, &tokens),
-                ">" if !ignore => interpreter::op_binary(stack, OpBinary::LGreater, ignore, &tokens),
-                "==" if !ignore => interpreter::op_binary(stack, OpBinary::Equality, ignore, &tokens),
-                "&&" if !ignore => interpreter::op_binary(stack, OpBinary::And, ignore, &tokens),
-                "||" if !ignore => interpreter::op_binary(stack, OpBinary::Or, ignore, &tokens),
+                "*" if !ignore => exectue_binary_op(stack, OpBinary::Multiply, ignore, &tokens), 
+                "+" if !ignore => exectue_binary_op(stack, OpBinary::Add, ignore, &tokens), 
+                "-" if !ignore => exectue_binary_op(stack, OpBinary::Subtract, ignore, &tokens),
+                "/" if !ignore => exectue_binary_op(stack, OpBinary::FDivide, ignore, &tokens),
+                "div" if !ignore => exectue_binary_op(stack, OpBinary::IDivide, ignore, &tokens),
+                "<" if !ignore => exectue_binary_op(stack, OpBinary::RGreater, ignore, &tokens),
+                ">" if !ignore => exectue_binary_op(stack, OpBinary::LGreater, ignore, &tokens),
+                "==" if !ignore => exectue_binary_op(stack, OpBinary::Equality, ignore, &tokens),
+                "&&" if !ignore => exectue_binary_op(stack, OpBinary::And, ignore, &tokens),
+                "||" if !ignore => exectue_binary_op(stack, OpBinary::Or, ignore, &tokens),
                 "not" if !ignore => interpreter::op_not(stack, ignore, &tokens),
 
                 "\"" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "\"".to_string()), 
@@ -406,6 +418,19 @@ pub mod parser {
             };
         }
     }
+
+    fn exectue_binary_op(stack: &mut Stack, op: OpBinary, ignore: bool, tokens: &[&str]) {
+        match interpreter::op_binary(stack, op) {
+            Ok(val) => {                // The arithemetic operation was possible and allowed for types
+                stack.remove(0);        // remove top two elements that computed the value
+                stack.remove(0);
+                stack.insert(0, Ok(val))
+            }
+            Err(err) => println!("Error: {}", err), 
+        }
+        process_tokens(&tokens[1..], ignore, stack);
+    }
+
 }
 
 
@@ -414,7 +439,7 @@ pub mod types {
     use std::str::FromStr;
 
     // Represents the program stack
-    pub type Stack = Vec<WValue>;
+    pub type Stack = Vec<Result<WValue, String>>;
 
     #[derive(Debug, Copy, Clone)]            // For printing out the OpBinary, for example Add.
     pub enum OpBinary {
@@ -464,17 +489,17 @@ pub mod types {
     }
     // To convert from string to the enum type
     impl WValue {
-        pub fn from_string(s: &str) -> WValue {
+        pub fn from_string(s: &str) -> Result<Self, String> {
             if let Ok(num) = i32::from_str(s) {
-                WValue::VInt(num)
+                Ok(WValue::VInt(num))
             } else if let Ok(num) = f32::from_str(s) {
-                WValue::VFloat(num)
+                Ok(WValue::VFloat(num))
             } else if let Ok(b) = bool::from_str(s) {
-                WValue::VBool(b)
+                Ok(WValue::VBool(b))
             } else if s.starts_with("\"") && s.ends_with("\"") {
-                WValue::VString(s.to_string())
+                Ok(WValue::VString(s.to_string()))
             } else {
-                WValue::VOther(s.to_string())
+                Ok(WValue::VOther(s.to_string()))
             }
         }
     }
