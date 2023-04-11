@@ -182,38 +182,64 @@ pub mod interpreter {
     }
 
     /// Adds a String to the stack string is denoted by " <input> "
-    pub fn op_quotes(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
-        let mut new_string = String::new();
+    pub fn op_enclosed(stack: &mut Stack, ignore: bool, tokens: &[&str], starting_symbol: String) {
+        let mut new_string = String::new();            // {} and "" represented as a string
+        let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
         let mut index = 0;
         let initial_stack_len = stack.len();
+
+        // Function only called for these three starting symbols, no need for error handling
+        let (start_char, end_char): (String, String) = match starting_symbol.as_str() {
+            "\"" => ("\"".to_string(), "\"".to_string()),
+            "[" => ("[".to_string(), "]".to_string()),
+            "{" => ("{".to_string(), "}".to_string()),
+            // This was just to satisfy the exhaustive pattern, function will never be called with any other symbol.
+            _ => panic!("Invalid starting symbol"), 
+        };
         
-        // enumerate returns a tuple with the index and token skips the first "
+        // enumerate returns a tuple with the index and token skips the first ", {, [
         for (i, token) in tokens.iter().enumerate().skip(1) {
-            if *token == "\"" {                  // Token ends with "
-                new_string.push_str(&token[..token.len() - 1]);     
+            if *token == end_char {                  // Token ends with "
+                //new_string.push_str(&token[..token.len() - 1]);     
                 index = i;                                      // Set the index to the last token
                 break;
-            } else {
-                new_string.push_str(token);     // Push token to the new string
-                // not the ending " add a space between each token
-                if tokens.get(i + 1).map_or(false, |t| *t == "\"") {   // map_or lets me return false if i+1 does not exist
-                    new_string.push(' ');
+            }   else {
+                    match start_char.as_str() {
+                    "\"" | "{" => {
+                        new_string.push_str(token);
+                        if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
+                            new_string.push(' ');
+                        }
+                    }
+                    "[" => {
+                        if !token.is_empty() {
+                            new_elements.push(V::VString(token.to_string()));
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
-        if index > 0 && tokens[index] == "\"" {
-            stack.insert(0, Ok(V::VString(format!("\"{}\"", new_string))));
-            parser::process_tokens(&tokens[index + 1..], ignore, stack);
+        println!("{} {:?}", new_string, new_elements);
+        if index > 0 && tokens[index] == end_char {
+            match end_char.as_str() {
+                "\"" => stack.insert(0, Ok(V::VString(format!("{}{}{}", start_char, new_string, end_char)))),
+                "]"  => stack.insert(0, Ok(V::VList(new_elements))),
+                "}"  => stack.insert(0, Ok(V::VCodeBlock(format!("{}{}{}", start_char, new_string, end_char)))),
+                _ => panic!("Invalid starting symbol"), // Just to satisfy exhaustive enforcement
+            }
         } else {
         println!("Error: Missing closing quote");
         stack.truncate(initial_stack_len); // Restore the stack to its initial length
         // Skip processing all the tokens after the opening quote
-        parser::process_tokens(&tokens[tokens.len()..], ignore, stack);
         }
+        parser::process_tokens(&tokens[index + 1..], ignore, stack);
     }
+
 }
 
  
+
 pub mod parser {
 
     use super::interpreter;
@@ -243,7 +269,9 @@ pub mod parser {
                 "&&" if !ignore => exectue_binary_op(stack, OpBinary::And, ignore, &tokens),
                 "||" if !ignore => exectue_binary_op(stack, OpBinary::Or, ignore, &tokens),
                 "not" if !ignore => interpreter::op_not(stack, ignore, &tokens),
-                "\"" if !ignore => interpreter::op_quotes(stack, ignore, &tokens), 
+                "\"" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "\"".to_string()), 
+                "[" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "[".to_string()), 
+                "{" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens,"{".to_string()), 
                 "dup" if !ignore => interpreter::op_dup(stack, ignore, &tokens),
                 "swap" if !ignore => interpreter::op_swap(stack, ignore, &tokens),
                 "print" if !ignore => interpreter::op_print(stack, ignore, &tokens),
@@ -278,6 +306,7 @@ pub mod parser {
 
 }
 
+
 pub mod types {
     use core::fmt;
     use std::str::FromStr;
@@ -298,12 +327,14 @@ pub mod types {
         And,
         Or 
     }
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub enum WValue {
         VInt (i32),
         VFloat (f32),
         VBool (bool),
         VString (String),
+        VList (Vec<WValue>),
+        VCodeBlock (String),
         VOther (String)
     }
     // To display the wrapped types as strings
@@ -314,6 +345,17 @@ pub mod types {
                 WValue::VFloat(n) => write!(f, "{}", n),
                 WValue::VBool(b) => write!(f, "{}", b),
                 WValue::VString(s) => write!(f, "{}", s),
+                WValue::VList(list) => {   // Vec<WValue> does not implement fmt::Display so need to do it customly
+                    write!(f, "[")?;
+                    for (i, value) in list.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", value)?;
+                    }
+                    write!(f, "]")
+                }
+                WValue::VCodeBlock(cb) => write!(f, "{}", cb),    
                 WValue::VOther(o) => write!(f, "{}", o),
             }
         }
