@@ -4,7 +4,7 @@ pub mod interpreter {
     use super::types::{Stack, WValue as V, OpBinary};
     
     /// Does the arithmetic operation sent as a parameter on the top two elements of the stack
-    pub fn op_binary(stack: &mut Stack, op: OpBinary, ignore: bool, tokens: &[&str]) {
+    pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str]) {
         if stack.len() < 2 {
             println!("Error: The stack needs minimum two elements for binary operation!");
         } else {
@@ -53,7 +53,7 @@ pub mod interpreter {
                 stack.remove(1);
             }
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }   
     
     /// Popps an item of the stack
@@ -78,7 +78,7 @@ pub mod interpreter {
     }
 
     /// Duplicates the top element of the stack
-    pub fn op_dup(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_dup(stack: &mut Stack, tokens: &[&str]){
         if stack.len() >= 1 {
             let top_element = stack[0].clone();
             stack.push(top_element);
@@ -87,22 +87,22 @@ pub mod interpreter {
             println!("Error: No elemets on the stack to duplicate!");
         }
 
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Swaps the order of the top two elements on the stack
-    pub fn op_swap(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+    pub fn op_swap(stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
             stack.swap(0, 1);
         }
         else {
             println!("Error: Need atleast two elements to perform swap!");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Prints the top element on the stack, works only for String types
-    pub fn op_print(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_print(stack: &mut Stack, tokens: &[&str]){
         if let Some(top_element) = stack.get(0) {       // Get top element if there is one 
             match top_element {
                 V::VString(s) => {                  // Top element is of type String
@@ -117,20 +117,20 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to print!");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Reads user input and adds it to the stack as a VString
-    pub fn op_read(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+    pub fn op_read(stack: &mut Stack, tokens: &[&str]) {
         use std::io;                                            // Only function that uses IO
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap().to_string(); // Get the input and store it in the input variable
         input = input.trim_end().to_string();                   // Remove \n and turn to string
         stack.insert(0, V::VString(format!("\"{}\"", input)));  // Add it to stack with ""
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     } 
 
-    pub fn op_words(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+    pub fn op_words(stack: &mut Stack, tokens: &[&str]) {
         if let Some(top_element) = stack.get(0){
             match top_element {
                 V::VString(s) => {                      // Top element is of type String
@@ -151,13 +151,13 @@ pub mod interpreter {
         } else {
             println!("Error: Stack is empty, cant get the top element!");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
 
     }
 
 
     /// Changes the top element to the not of it
-    pub fn op_not(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_not(stack: &mut Stack, tokens: &[&str]){
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
                 V::VBool(b) => {       
@@ -176,10 +176,10 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to perform logical not on!")
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
     /// Returns the first element from a list if the first stack element is a list
-    pub fn op_head(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_head(stack: &mut Stack, tokens: &[&str]){
         if let Some(V::VList(list)) = stack.get(0){ // if top element exists and is a VList
             if !list.is_empty() {
                 
@@ -190,11 +190,11 @@ pub mod interpreter {
         else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Returns the last element from a list if the first stack element is a list
-    pub fn op_tail(stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+    pub fn op_tail(stack: &mut Stack, tokens: &[&str]) {
         if let Some(V::VList(list)) = stack.get(0) {    // if top element exists and is a VList
             if !list.is_empty() {
                 
@@ -204,30 +204,30 @@ pub mod interpreter {
         } else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
     /// Checks if the top element on the stack is a list. If it is a list and it is empty,
     ///  it inserts false into the stack, if it is not empty it inserts true.
-    pub fn op_empty(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_empty(stack: &mut Stack, tokens: &[&str]){
         if let Some(V::VList(list)) = stack.get(0){
             stack.insert(0, V::VBool(list.is_empty()));
         } else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Checks if the top element on the stack is a list. If it is a list it inserts the length of the list
-    pub fn op_length(stack: &mut Stack, ignore: bool, tokens: &[&str]){
+    pub fn op_length(stack: &mut Stack, tokens: &[&str]){
         if let Some(V::VList(list)) = stack.get(0){
             stack.insert(0, V::VInt(list.len() as i32));
         } else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
-    pub fn op_cons (stack: &mut Stack, ignore: bool, tokens: &[&str]) {
+    pub fn op_cons (stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
             let item = stack.remove(1);
             if let Some(V::VList(list)) = stack.get_mut(0) {
@@ -239,11 +239,24 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform cons.");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
+    }
+    /// Executes the tokens within a codeblock
+    pub fn op_exec (stack: &mut Stack, tokens: &[&str]) {
+        if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned(){ // Need to clone since we remove an element later
+            stack.remove(0);
+            
+            let without_braces = &code_block[1..code_block.len()-1];    // Remove { }
+            let tokens_code_block: Vec<&str> = without_braces.split_whitespace().collect(); 
+            parser::process_tokens(&tokens_code_block, stack);  // Process the codeblock
+        } else {
+            println!("Error: Stack empty or top element not a codeblock");
+        }
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Parse a string from stack to a integer and puts it back onto the stack
-    pub fn op_parse_num(stack: &mut Stack, ignore: bool, parse_float: bool, tokens: &[&str]) {
+    pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
                 V::VString(s) => {
@@ -269,11 +282,11 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to parse!");
         }
-        parser::process_tokens(&tokens[1..], ignore, stack);
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
-    pub fn op_enclosed(stack: &mut Stack, ignore: bool, tokens: &[&str], starting_symbol: String) {
+    pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String) {
         let mut new_string = String::new();            // {} and "" represented as a string
         let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
         let mut index = 0;
@@ -317,7 +330,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new(); // Dummy stack to send to op_enclosed
-                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "\"".to_string());
+                            op_enclosed(&mut sub_stack, &sub_tokens, "\"".to_string());
                             if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
                                 new_elements.push(value.clone());
                             }
@@ -335,7 +348,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "{".to_string());
+                            op_enclosed(&mut sub_stack, &sub_tokens, "{".to_string());
                             if let Some(value) = sub_stack.get(0) {
                                 new_elements.push(value.clone());
                             }
@@ -353,7 +366,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "[".to_string());
+                            op_enclosed(&mut sub_stack, &sub_tokens, "[".to_string());
                             if let Some(value) = sub_stack.get(0) {
                                  new_elements.push(value.clone());
                             }
@@ -380,7 +393,7 @@ pub mod interpreter {
         println!("Error: Missing closing quote");
         stack.truncate(initial_stack_len); // Restore the stack to its initial length
         }
-        parser::process_tokens(&tokens[index + 1..], ignore, stack);
+        parser::process_tokens(&tokens[index + 1..], stack);
     }
     /* 
     Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
@@ -419,54 +432,56 @@ pub mod parser {
     pub fn process_input(line: &str, stack: &mut Stack) {
         let tokens = line.split_whitespace().collect::<Vec<&str>>(); // Get all symbols separated by space
         // Process the token inputs
-        process_tokens(&tokens, false, stack);
+        process_tokens(&tokens, stack);
     }
     
     /// Processes the tokens sent by process_input and handles the different type of tokens
     /// Calls itself recursively with the next token in the list until there are not tokens left
-    pub fn process_tokens(tokens: &[&str], ignore: bool, stack: &mut Stack) {
+    pub fn process_tokens(tokens: &[&str], stack: &mut Stack) {
         if !tokens.is_empty() {
             match tokens[0] {
-                "*" if !ignore => interpreter::op_binary(stack, OpBinary::Multiply, ignore, &tokens), 
-                "+" if !ignore => interpreter::op_binary(stack, OpBinary::Add, ignore, &tokens), 
-                "-" if !ignore => interpreter::op_binary(stack, OpBinary::Subtract, ignore, &tokens),
-                "/" if !ignore => interpreter::op_binary(stack, OpBinary::FDivide, ignore, &tokens),
-                "div" if !ignore => interpreter::op_binary(stack, OpBinary::IDivide, ignore, &tokens),
-                "<" if !ignore => interpreter::op_binary(stack, OpBinary::RGreater, ignore, &tokens),
-                ">" if !ignore => interpreter::op_binary(stack, OpBinary::LGreater, ignore, &tokens),
-                "==" if !ignore => interpreter::op_binary(stack, OpBinary::Equality, ignore, &tokens),
-                "&&" if !ignore => interpreter::op_binary(stack, OpBinary::And, ignore, &tokens),
-                "||" if !ignore => interpreter::op_binary(stack, OpBinary::Or, ignore, &tokens),
-                "not" if !ignore => interpreter::op_not(stack, ignore, &tokens),
+                "*" => interpreter::op_binary(stack, OpBinary::Multiply,  &tokens), 
+                "+" => interpreter::op_binary(stack, OpBinary::Add,  &tokens), 
+                "-" => interpreter::op_binary(stack, OpBinary::Subtract,  &tokens),
+                "/" => interpreter::op_binary(stack, OpBinary::FDivide,  &tokens),
+                "div" => interpreter::op_binary(stack, OpBinary::IDivide, &tokens),
+                "<" => interpreter::op_binary(stack, OpBinary::RGreater, &tokens),
+                ">" => interpreter::op_binary(stack, OpBinary::LGreater, &tokens),
+                "==" => interpreter::op_binary(stack, OpBinary::Equality, &tokens),
+                "&&" => interpreter::op_binary(stack, OpBinary::And, &tokens),
+                "||" => interpreter::op_binary(stack, OpBinary::Or, &tokens),
+                "not" => interpreter::op_not(stack, &tokens),
 
-                "\"" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "\"".to_string()), 
-                "[" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens, "[".to_string()), 
-                "{" if !ignore => interpreter::op_enclosed(stack, ignore, &tokens,"{".to_string()),
+                "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string()), 
+                "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string()), 
+                "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string()),
 
-                "dup" if !ignore => interpreter::op_dup(stack, ignore, &tokens),
-                "swap" if !ignore => interpreter::op_swap(stack, ignore, &tokens),
+                "dup" => interpreter::op_dup(stack, &tokens),
+                "swap" => interpreter::op_swap(stack, &tokens),
 
-                "print" if !ignore => interpreter::op_print(stack, ignore, &tokens),
-                "read" if !ignore => interpreter::op_read(stack, ignore, &tokens),
+                "print" => interpreter::op_print(stack, &tokens),
+                "read" => interpreter::op_read(stack, &tokens),
                 
-                "parseInteger" if !ignore => interpreter::op_parse_num(stack, ignore, false, &tokens),
-                "parseFloat" if !ignore => interpreter::op_parse_num(stack, ignore, true, &tokens),
-                "words" if !ignore => interpreter::op_words(stack, ignore, &tokens),
+                "parseInteger" => interpreter::op_parse_num(stack, false, &tokens),
+                "parseFloat" => interpreter::op_parse_num(stack, true, &tokens),
+                "words" => interpreter::op_words(stack, &tokens),
 
-                "head" if !ignore => interpreter::op_head(stack, ignore, &tokens),
-                "tail" if !ignore => interpreter::op_tail(stack, ignore, &tokens),
-                "empty" if !ignore => interpreter::op_empty(stack, ignore, &tokens),
-                "length" if !ignore => interpreter::op_length(stack, ignore, &tokens),
-                "cons" if !ignore => interpreter::op_cons(stack, ignore, &tokens),
-                "pop" if !ignore => {
+                "head" => interpreter::op_head(stack, &tokens),
+                "tail" => interpreter::op_tail(stack, &tokens),
+                "empty" => interpreter::op_empty(stack, &tokens),
+                "length" => interpreter::op_length(stack, &tokens),
+                "cons" => interpreter::op_cons(stack, &tokens),
+
+                "exec" => interpreter::op_exec(stack, &tokens),
+                "pop" => {
                     interpreter::op_pop(stack);
-                    process_tokens(&tokens[1..], ignore, stack);
+                    process_tokens(&tokens[1..], stack);
                 }
-                _ if !ignore => {
+                _ => {
                      interpreter::op_num(stack, tokens[0]);
-                     process_tokens(&tokens[1..], ignore, stack);
+                     process_tokens(&tokens[1..], stack);
                     }
-                _ => process_tokens(&tokens[1..], ignore, stack),
+                _ => process_tokens(&tokens[1..], stack),
             };
         }
     }
