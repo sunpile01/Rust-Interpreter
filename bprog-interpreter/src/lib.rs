@@ -181,7 +181,7 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], ignore, stack);
     }
 
-    /// Adds a String to the stack string is denoted by " <input> "
+    /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
     pub fn op_enclosed(stack: &mut Stack, ignore: bool, tokens: &[&str], starting_symbol: String) {
         let mut new_string = String::new();            // {} and "" represented as a string
         let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
@@ -197,30 +197,53 @@ pub mod interpreter {
             _ => panic!("Invalid starting symbol"), 
         };
         
+        let mut i = 1;
         // enumerate returns a tuple with the index and token skips the first ", {, [
-        for (i, token) in tokens.iter().enumerate().skip(1) {
-            if *token == end_char {                  // Token ends with "
-                //new_string.push_str(&token[..token.len() - 1]);     
-                index = i;                                      // Set the index to the last token
-                break;
-            }   else {
-                    match start_char.as_str() {
-                    "\"" | "{" => {
-                        new_string.push_str(token);
-                        if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
-                            new_string.push(' ');
-                        }
+        while let Some(token) = tokens.get(i) {
+        if *token == end_char {                  // Token ends with correct end_char  
+            index = i;                                      // Set the index to the last token
+            break;
+        } else {
+            match start_char.as_str() {
+                "\"" | "{" => {                     // Just push token + space 
+                    new_string.push_str(token);
+                    if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
+                        new_string.push(' ');
                     }
-                    "[" => {
-                        if !token.is_empty() {
-                            new_elements.push(V::VString(token.to_string()));
+                    i += 1;
+                }
+                "[" => {
+                    if *token == "\"" {        // Process a string within the list
+                        let mut sub_tokens = Vec::new();    // Vec with tokens following initial "
+                        sub_tokens.push("\"");
+                        let mut j = i + 1;                 
+                        // Goes through all the tokens untill it finds the closing " and adds them to the new stack
+                        while let Some(token) = tokens.get(j) {
+                            sub_tokens.push(token);
+                            if token.ends_with("\"") {
+                                break;
+                            }
+                            j += 1;
                         }
+                        let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
+                        op_enclosed(&mut sub_stack, ignore, &sub_tokens, "\"".to_string());
+                        if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
+                            if let Ok(v) = value {              // clone the value and push it to the vector
+                                new_elements.push(v.clone());
+                            }
+                        }
+                        i = j + 1;
+                    } else {                                               // Not a " token
+                        new_elements.push(V::VString(token.to_string()));
+                        i += 1;   
                     }
-                    _ => {}
+                }
+                _ => {              // To satisfy exhaustive pattern
+                    i += 1;
+                }                             
                 }
             }
         }
-        println!("{} {:?}", new_string, new_elements);
         if index > 0 && tokens[index] == end_char {
             match end_char.as_str() {
                 "\"" => stack.insert(0, Ok(V::VString(format!("{}{}{}", start_char, new_string, end_char)))),
@@ -231,7 +254,6 @@ pub mod interpreter {
         } else {
         println!("Error: Missing closing quote");
         stack.truncate(initial_stack_len); // Restore the stack to its initial length
-        // Skip processing all the tokens after the opening quote
         }
         parser::process_tokens(&tokens[index + 1..], ignore, stack);
     }
