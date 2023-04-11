@@ -200,47 +200,87 @@ pub mod interpreter {
         let mut i = 1;
         // enumerate returns a tuple with the index and token skips the first ", {, [
         while let Some(token) = tokens.get(i) {
-        if *token == end_char {                  // Token ends with correct end_char  
-            index = i;                                      // Set the index to the last token
-            break;
-        } else {
-            match start_char.as_str() {
-                "\"" | "{" => {                     // Just push token + space 
-                    new_string.push_str(token);
-                    if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
-                        new_string.push(' ');
-                    }
-                    i += 1;
-                }
-                "[" => {
-                    if *token == "\"" {        // Process a string within the list
-                        let mut sub_tokens = Vec::new();    // Vec with tokens following initial "
-                        sub_tokens.push("\"");
-                        let mut j = i + 1;                 
-                        // Goes through all the tokens untill it finds the closing " and adds them to the new stack
-                        while let Some(token) = tokens.get(j) {
-                            sub_tokens.push(token);
-                            if token.ends_with("\"") {
-                                break;
-                            }
-                            j += 1;
+            if *token == end_char {                  // Token ends with correct end_char  
+                index = i;                                      // Set the index to the last token
+                break;
+            } else {
+                match start_char.as_str() {
+                    "\"" | "{" => {                     // Just push token + space 
+                        new_string.push_str(token);
+                        if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
+                            new_string.push(' ');
                         }
-                        let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
-                        op_enclosed(&mut sub_stack, ignore, &sub_tokens, "\"".to_string());
-                        if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
-                            if let Ok(v) = value {              // clone the value and push it to the vector
-                                new_elements.push(v.clone());
-                            }
-                        }
-                        i = j + 1;
-                    } else {                                               // Not a " token
-                        new_elements.push(V::VString(token.to_string()));
-                        i += 1;   
+                        i += 1;
                     }
-                }
-                _ => {              // To satisfy exhaustive pattern
-                    i += 1;
-                }                             
+                    "[" => {
+                        if *token == "\"" {
+                            let mut sub_tokens = Vec::new(); // Vec with tokens following initial "
+                            sub_tokens.push("\"");
+                            let mut j = i + 1;
+                            // Goes through all the tokens untill it finds the closing " and adds them to the new stack
+                            while let Some(token) = tokens.get(j) {
+                                sub_tokens.push(token);
+                                if token.ends_with("\"") {
+                                    break;
+                                }
+                                j += 1;
+                            }
+                            let mut sub_stack: Stack = Vec::new(); // Dummy stack to send to op_enclosed
+                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "\"".to_string());
+                            if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
+                            }
+                            i = j + 1;
+                            // TODO make the helper function work to remove duplicated code
+                        } else if *token == "{" {
+                            let mut sub_tokens = Vec::new();
+                            sub_tokens.push("{");
+                            let mut j = i + 1;
+                            while let Some(token) = tokens.get(j) {
+                                sub_tokens.push(token);
+                                if token.ends_with("}") {
+                                    break;
+                                }
+                                j += 1;
+                            }
+                            let mut sub_stack: Stack = Vec::new();
+                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "{".to_string());
+                            if let Some(value) = sub_stack.get(0) {
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
+                            }
+                            i = j + 1;
+                            // REALLY BADLY NEED THIS HELPER FUNCTION
+                        } else if *token == "[" {
+                            let mut sub_tokens = Vec::new();
+                            sub_tokens.push("[");
+                            let mut j = i + 1;
+                            while let Some(token) = tokens.get(j) {
+                                sub_tokens.push(token);
+                                if token.ends_with("]") {
+                                    break;
+                                }
+                                j += 1;
+                            }
+                            let mut sub_stack: Stack = Vec::new();
+                            op_enclosed(&mut sub_stack, ignore, &sub_tokens, "[".to_string());
+                            if let Some(value) = sub_stack.get(0) {
+                                if let Ok(v) = value {
+                                    new_elements.push(v.clone());
+                                }
+                            }
+                            i = j + 1;
+                        } else {
+                            new_elements.push(V::VString(token.to_string()));
+                            i += 1;
+                        }
+                    }
+                    _ => {              // To satisfy exhaustive pattern
+                        i += 1;
+                    }                              
                 }
             }
         }
@@ -257,10 +297,32 @@ pub mod interpreter {
         }
         parser::process_tokens(&tokens[index + 1..], ignore, stack);
     }
-
+    /* 
+    Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
+    Needs to be fixed later.
+    /// Processes a String or CodeBlock item that will be added to the list vector.
+    /// Many parameters because i send what needs to be updated as reference, so I dont have to duplicate code
+    /// in the op_enclosed function
+    fn string_or_codeblock(token: &str, i: usize, tokens: &[&str], starting_symbol: &str) -> (usize, Option<V>) {
+        let mut sub_tokens = Vec::new();    // Vec with tokens following initial "
+        sub_tokens.push(starting_symbol);  
+        let mut j = i + 1;
+        // Goes through all the tokens untill it finds the closing " and adds them to the new stack
+        while let Some(token) = tokens.get(j) {
+            sub_tokens.push(token);
+            if token.ends_with(starting_symbol) {
+                break;
+            }
+            j += 1;
+        }
+        let mut sub_stack: Stack = Vec::new();  // Dummy stack to send to op_enclosed
+        op_enclosed(&mut sub_stack, false, &sub_tokens, starting_symbol.to_string());
+        let value = sub_stack.get(0).and_then(|v| v.clone().ok());   // Get the String element from the sub stack
+        (j, value)
+    }
+    */
 }
 
- 
 
 pub mod parser {
 
