@@ -227,6 +227,7 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], stack);
     }
 
+    /// Append an element to the front of a list. Not sure about how the order should be done here
     pub fn op_cons (stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
             let item = stack.remove(1);
@@ -237,10 +238,29 @@ pub mod interpreter {
                 stack.insert(1, item);                          // Insert the item we removed.
             }
         } else {
-            println!("Error: Not enough elements on the stack to perform cons.");
+            println!("Error: Not enough elements on the stack to perform cons");
         }
         parser::process_tokens(&tokens[1..], stack);
     }
+
+    /// Appends one list to the end of another list. Not sure how the order should be done here
+    pub fn op_append (stack: &mut Stack, tokens: &[&str]) {
+        if stack.len() >= 2{
+            if let Some(V::VList(list2)) = stack.get(0){    // Get the list to be appended to the other
+                let list2_clone = list2.clone();
+                stack.remove(0);                                    // Remove list 1
+                if let Some(V::VList(list1)) = stack.get_mut(0) {   // Now we can get as mutable reference 
+                    list1.extend(list2_clone);                      // Extends list1 with list2
+                }
+            } else {
+                println!("Error: Top two elements are not lists");
+            }
+        } else {
+            println!("Error: Not enough elements on the stack to perform append")
+        }
+        parser::process_tokens(&tokens[1..], stack);
+    }
+
     /// Executes the tokens within a codeblock
     pub fn op_exec (stack: &mut Stack, tokens: &[&str]) {
         if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned(){ // Need to clone since we remove an element later
@@ -450,8 +470,8 @@ pub mod parser {
                 "==" => interpreter::op_binary(stack, OpBinary::Equality, &tokens),
                 "&&" => interpreter::op_binary(stack, OpBinary::And, &tokens),
                 "||" => interpreter::op_binary(stack, OpBinary::Or, &tokens),
-                "not" => interpreter::op_not(stack, &tokens),
 
+                "not" => interpreter::op_not(stack, &tokens),
                 "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string()), 
                 "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string()), 
                 "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string()),
@@ -471,6 +491,7 @@ pub mod parser {
                 "empty" => interpreter::op_empty(stack, &tokens),
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
+                "append" => interpreter::op_append(stack, &tokens),
 
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => {
