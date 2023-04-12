@@ -286,17 +286,17 @@ pub mod interpreter {
     pub fn op_each(stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
             if let Some(V::VCodeBlock(code_block)) = stack.get(1) {
-                let code_block_clone = code_block.clone(); // Clone the code_block
+                // Clone the code block and split it into tokens without the {}
+                let code_block_clone = code_block.clone(); 
                 let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
                 let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
 
-                if let V::VList(mut list) = stack[0].clone() {
+                if let V::VList(mut list) = stack[0].clone() {  // mutable reference to list
                     for i in 0..list.len() {
-                        let list_item = list[i].clone();
-                        let mut dummy_stack: Vec<V> = vec![list_item];
-                        parser::process_tokens(&code_block_tokens, &mut dummy_stack);
+                        let mut dummy_stack: Vec<V> = vec![list[i].clone()]; // stack becomes the current list element
+                        parser::process_tokens(&code_block_tokens, &mut dummy_stack); // codeblock executed for list element
                         if !dummy_stack.is_empty() {
-                            list[i] = dummy_stack[0].clone();
+                            list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
                         }
                     }
                     stack.remove(1); // Remove the code block from the stack
@@ -313,7 +313,7 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], stack);
     }
 
-    /// Parse a string from stack to a integer and puts it back onto the stack
+    /// Parse a string from stack to a integer or float and puts it back onto the stack
     pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
@@ -350,7 +350,7 @@ pub mod interpreter {
         let mut index = 0;
         let initial_stack_len = stack.len();
 
-        // Function only called for these three starting symbols, no need for error handling
+        // Function only called for these three starting symbols, no need for handling exceptions
         let (start_char, end_char): (String, String) = match starting_symbol.as_str() {
             "\"" => ("\"".to_string(), "\"".to_string()),
             "[" => ("[".to_string(), "]".to_string()),
@@ -360,85 +360,91 @@ pub mod interpreter {
         };
         
         let mut i = 1;
-        // enumerate returns a tuple with the index and token skips the first ", {, [
         while let Some(token) = tokens.get(i) {
-            if *token == end_char {                  // Token ends with correct end_char  
-                index = i;                                      // Set the index to the last token
+            if *token == end_char {     // Token is the correct end_char                          
+                index = i;              // Set the index to the last token
                 break;
             } else {
                 match start_char.as_str() {
-                    "\"" | "{" => {                     // Just push token + space 
+                    "\"" => {                               // Just push token + space
                         new_string.push_str(token);
-                        if tokens.get(i + 1).map_or(false, |t| *t != end_char) {
+                        if *tokens[i + 1] != end_char {     // Next token is not end_char
                             new_string.push(' ');
                         }
                         i += 1;
                     }
-                    "[" => {
-                        if *token == "\"" {
-                            let mut sub_tokens = Vec::new(); // Vec with tokens following initial "
-                            sub_tokens.push("\"");
+                    "{" => {
+                        // TODO make the helper function work to remove duplicated code
+                        if *token == "\"" || *token == "{" || *token == "[" {
+                            let mut sub_tokens = Vec::new();   // Vec with tokens following initial ", { or [
+                            sub_tokens.push(*token);
                             let mut j = i + 1;
+
+                            let sub_end_char = match *token {   //Update new end char 
+                                "\"" => "\"",
+                                "{" => "}",
+                                "[" => "]",
+                                _ => panic!("Invalid starting symbol"), // will not reach this
+                            };
+
                             // Goes through all the tokens untill it finds the closing " and adds them to the new stack
                             while let Some(token) = tokens.get(j) {
                                 sub_tokens.push(token);
-                                if token.ends_with("\"") {
+                                if token.contains(sub_end_char) {
                                     break;
                                 }
                                 j += 1;
                             }
-                            let mut sub_stack: Stack = Vec::new(); // Dummy stack to send to op_enclosed
-                            op_enclosed(&mut sub_stack, &sub_tokens, "\"".to_string());
-                            if let Some(value) = sub_stack.get(0) { // Get the String element from the sub stack
-                                new_elements.push(value.clone());
-                            }
-                            i = j + 1;
-                            // TODO make the helper function work to remove duplicated code
-                        } else if *token == "{" {
-                            let mut sub_tokens = Vec::new();
-                            sub_tokens.push("{");
-                            let mut j = i + 1;
-                            while let Some(token) = tokens.get(j) {
-                                sub_tokens.push(token);
-                                if token.ends_with("}") {
-                                    break;
-                                }
-                                j += 1;
-                            }
-                            let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, &sub_tokens, "{".to_string());
-                            if let Some(value) = sub_stack.get(0) {
-                                new_elements.push(value.clone());
-                            }
-                            i = j + 1;
-                            // REALLY BADLY NEED THIS HELPER FUNCTION
-                        } else if *token == "[" {
-                            let mut sub_tokens = Vec::new();
-                            sub_tokens.push("[");
-                            let mut j = i + 1;
-                            while let Some(token) = tokens.get(j) {
-                                sub_tokens.push(token);
-                                if token.ends_with("]") {
-                                    break;
-                                }
-                                j += 1;
-                            }
-                            let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, &sub_tokens, "[".to_string());
-                            if let Some(value) = sub_stack.get(0) {
-                                 new_elements.push(value.clone());
+                            let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string());
+                            if let Some(value) = sub_stack.get(0) {         // Get the String, list or codeblock element from the sub stack
+                                new_string.push_str(&format!("{} ", value.to_string()));
                             }
                             i = j + 1;
                         } else {
-                            match V::from_string(token) {   // Transform the token from string to the correct WValue
+                            new_string.push_str(token);
+                            if *tokens[i + 1] != end_char {
+                                new_string.push(' ');
+                            }
+                            i += 1;
+                        }
+                    }
+                    "[" => {
+                        // TODO make the helper function work to remove duplicated code
+                        if *token == "\"" || *token == "{" || *token == "[" {
+                            let mut sub_tokens = Vec::new();
+                            sub_tokens.push(*token);
+                            let mut j = i + 1;
+                            let sub_end_char = match *token {   //Update new end char 
+                                "\"" => "\"",
+                                "{" => "}",
+                                "[" => "]",
+                                _ => panic!("Invalid starting symbol"), // will not reach this
+                            };
+
+                            while let Some(token) = tokens.get(j) {
+                                sub_tokens.push(token);
+                                if token.contains(sub_end_char) {
+                                    break;
+                                }
+                                j += 1;
+                            }
+                            let mut sub_stack: Stack = Vec::new();
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string());
+                            if let Some(value) = sub_stack.get(0) {
+                                new_elements.push(value.clone());
+                            }
+                            i = j + 1;
+                        } else {
+                            match V::from_string(token) {
                                 value => new_elements.push(value),
                             }
                             i += 1;
                         }
                     }
-                    _ => {              // To satisfy exhaustive pattern
+                    _ => {
                         i += 1;
-                    }                              
+                    }
                 }
             }
         }
