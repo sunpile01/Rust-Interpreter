@@ -2,7 +2,13 @@ pub mod interpreter {
     use super::parser;
 
     use super::types::{Stack, WValue as V, OpBinary};
-    
+    use std::any::{Any, TypeId};
+
+    fn print_type<T: Any>(_: &T) {
+        let type_id = TypeId::of::<T>();
+        println!("{:?}", type_id);
+    }
+
     /// Does the arithmetic operation sent as a parameter on the top two elements of the stack
     pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str]) {
         if stack.len() < 2 {
@@ -10,6 +16,7 @@ pub mod interpreter {
         } else {
             let b = stack[0].clone();       // mutable copy
             let a = stack[1].clone();
+            println!("The types of a and b: {:?} and {:?}", a, b);
             let mut succesfull = true;
             // Mathces the types of the top two elements on the stack with the opperation
             match (a, b, op) {
@@ -44,7 +51,7 @@ pub mod interpreter {
                 // Allowed operations where types do not fully match
                 // TODO
                 _ => {
-                    println!("The types of the top two elements are not compatible for {:?} operation", op);
+                    println!("The types of the top two elements are not compatible for {:?} operation.", op);
                     succesfull = false;
                 }
             }
@@ -65,14 +72,11 @@ pub mod interpreter {
         }
     }
 
-    /// Turns the token into a WValue, if the token is not a WValue it is an error
+    /// Turns the token into a WValue
     pub fn op_num(stack: &mut Stack, token: &str) {
-        match V::from_string(token) {            // Pattern matches the token 
+        match V::from_string(token) {         
             value => {
-                stack.insert(0, value);   // if it is a valid type insert it to the stack
-            }
-            _ => {              // Insert error to the stack
-                println!("Error: not supported type!");
+                stack.insert(0, value);   
             }
         }
     }
@@ -275,6 +279,40 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], stack);
     }
 
+    /// For each element in a list it executes a given codde block
+    /// Wanted to use:
+    /// if let (Some(V::VCodeBlock(code_block)), Some(V::VList(list))) = (stack.get(1), stack.get(0)){
+    /// to get the elements, but did not work because it caused conflictons with borrows of stack with the other code
+    pub fn op_each(stack: &mut Stack, tokens: &[&str]) {
+        if stack.len() >= 2 {
+            if let Some(V::VCodeBlock(code_block)) = stack.get(1) {
+                let code_block_clone = code_block.clone(); // Clone the code_block
+                let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
+                let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+
+                if let V::VList(mut list) = stack[0].clone() {
+                    for i in 0..list.len() {
+                        let list_item = list[i].clone();
+                        let mut dummy_stack: Vec<V> = vec![list_item];
+                        parser::process_tokens(&code_block_tokens, &mut dummy_stack);
+                        if !dummy_stack.is_empty() {
+                            list[i] = dummy_stack[0].clone();
+                        }
+                    }
+                    stack.remove(1); // Remove the code block from the stack
+                    stack[0] = V::VList(list); // Update the original list in the stack
+                } else {
+                    println!("Error: The first element on the stack is not a list!");
+                }
+            } else {
+                println!("Error: The second element on the stack is not a codeblock!");
+            }
+        } else {
+            println!("Error: Need at least two elements on the stack to perform each");
+        }
+        parser::process_tokens(&tokens[1..], stack);
+    }
+
     /// Parse a string from stack to a integer and puts it back onto the stack
     pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
@@ -392,7 +430,9 @@ pub mod interpreter {
                             }
                             i = j + 1;
                         } else {
-                            new_elements.push(V::VString(token.to_string()));
+                            match V::from_string(token) {   // Transform the token from string to the correct WValue
+                                value => new_elements.push(value),
+                            }
                             i += 1;
                         }
                     }
@@ -492,6 +532,7 @@ pub mod parser {
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
                 "append" => interpreter::op_append(stack, &tokens),
+                "each" => interpreter::op_each(stack, &tokens),
 
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => {
