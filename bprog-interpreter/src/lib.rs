@@ -64,12 +64,13 @@ pub mod interpreter {
     }   
     
     /// Popps an item of the stack
-    pub fn op_pop(stack: &mut Stack){
+    pub fn op_pop(stack: &mut Stack, tokens: &[&str]){
         if !stack.is_empty() {
             stack.remove(0);
         } else {
             println!("Error: Pop operation not executed, stack was already empty");
         }
+        parser::process_tokens(&tokens[1..], stack);
     }
 
     /// Turns the token into a WValue
@@ -85,7 +86,7 @@ pub mod interpreter {
     pub fn op_dup(stack: &mut Stack, tokens: &[&str]){
         if stack.len() >= 1 {
             let top_element = stack[0].clone();
-            stack.push(top_element);
+            stack.insert(0, top_element);
         }
         else {
             println!("Error: No elemets on the stack to duplicate!");
@@ -232,6 +233,7 @@ pub mod interpreter {
     }
 
     /// Append an element to the front of a list. Not sure about how the order should be done here
+    /// Works in this order 3 [ 4 ] cons
     pub fn op_cons (stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
             let item = stack.remove(1);
@@ -239,7 +241,7 @@ pub mod interpreter {
                 list.insert(0, item);
             } else {
                 println!("Error: Second element is not a list!");
-                stack.insert(1, item);                          // Insert the item we removed.
+                stack.insert(1, item);                          // Reinsert the item we removed.
             }
         } else {
             println!("Error: Not enough elements on the stack to perform cons");
@@ -502,8 +504,6 @@ pub mod interpreter {
 
 pub mod parser {
 
-    use std::string;
-
     use super::interpreter;
     use super::types::{Stack, OpBinary};
     
@@ -556,10 +556,7 @@ pub mod parser {
                 "map" => map_or_each(stack, &tokens, true),
 
                 "exec" => interpreter::op_exec(stack, &tokens),
-                "pop" => {
-                    interpreter::op_pop(stack);
-                    process_tokens(&tokens[1..], stack);
-                }
+                "pop" => interpreter::op_pop(stack, &tokens),
                 _ => {
                      interpreter::op_num(stack, tokens[0]);
                      process_tokens(&tokens[1..], stack);
