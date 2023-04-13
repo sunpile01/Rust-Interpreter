@@ -280,24 +280,37 @@ pub mod interpreter {
     }
 
     /// For each element in a list it executes a given code block
-    pub fn op_each(stack: &mut Stack, tokens: &[&str]) {
+    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: bool) {
         if stack.len() >= 2 {
             if let Some(V::VCodeBlock(code_block)) = stack.get(0) {
                 // Clone the code block and split it into tokens without the {}
-                let code_block_clone = code_block.clone(); 
+                let code_block_clone = code_block.clone();
                 let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
                 let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
-
-                if let V::VList(mut list) = stack[1].clone() {  // mutable reference to list
+    
+                if let V::VList(mut list) = stack[1].clone() {
+                    stack.remove(0); // Remove the code block from the stack
+    
+                    if !is_map {
+                        stack.remove(0); // Remove the original list from the stack
+                    }
+    
                     for i in 0..list.len() {
-                        let mut dummy_stack: Vec<V> = vec![list[i].clone()]; // stack becomes the current list element
+                        let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
                         parser::process_tokens(&code_block_tokens, &mut dummy_stack); // codeblock executed for list element
+    
                         if !dummy_stack.is_empty() {
-                            list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
+                            if !is_map {
+                                stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
+                            } else {
+                                list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
+                            }
                         }
                     }
-                    stack.remove(0); // Remove the code block from the stack
-                    stack[0] = V::VList(list); // Update the original list in the stack
+    
+                    if is_map {
+                        stack[0] = V::VList(list); // Update the original list in the stack
+                    }
                 } else {
                     println!("Error: The first element on the stack is not a list!");
                 }
@@ -305,7 +318,7 @@ pub mod interpreter {
                 println!("Error: The second element on the stack is not a codeblock!");
             }
         } else {
-            println!("Error: Need at least two elements on the stack to perform each");
+            println!("Error: Need at least two elements on the stack to perform operation");
         }
         parser::process_tokens(tokens, stack);
     }
@@ -489,6 +502,8 @@ pub mod interpreter {
 
 pub mod parser {
 
+    use std::string;
+
     use super::interpreter;
     use super::types::{Stack, OpBinary};
     
@@ -537,28 +552,9 @@ pub mod parser {
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
                 "append" => interpreter::op_append(stack, &tokens),
-                "each" => {
-                    // Need to process codeblock first since syntax is [] each {}
-                    if let Some(next_token) = tokens.get(1) {
-                        if next_token.starts_with("{") {
-                            // Adds the codeblock to the stack
-                            interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false);
-                            // Finds the closing }, else the
-                            if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
-                                interpreter::op_each(stack, &tokens[closing_brace_index + 2..]);
-                            } else {
-                                // Should i let it process next tokens here?
-                                println!("Error: Missing closing brace for the code block!");
-                            }
-                        } else {
-                            // Should i let it process next tokens here? 
-                            println!("Error: Next element is not a codeblock!");
-                            process_tokens(&tokens[1..], stack);    // Processes the next token as usual
-                        }
-                    } else {
-                        println!("Error: Needs to be a codeblock after each for it to work!");
-                    }
-                }
+                "each" => map_or_each(stack, &tokens, false),
+                "map" => map_or_each(stack, &tokens, true),
+
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => {
                     interpreter::op_pop(stack);
@@ -572,6 +568,35 @@ pub mod parser {
             };
         }
     }
+    
+    fn map_or_each (stack: &mut Stack, tokens: &[&str], do_map: bool){
+        // Need to process codeblock first since syntax is [] each {}
+        if let Some(next_token) = tokens.get(1) {
+            if next_token.starts_with("{") {
+                // Adds the codeblock to the stack
+                interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false);
+                // Finds the closing }, else the
+                if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
+                    if do_map {
+                        interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
+                    }
+                    else {
+                        interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
+                    }
+                } else {
+                    // Should i let it process next tokens here?
+                    println!("Error: Missing closing brace for the code block!");
+                }
+            } else {
+                // Should i let it process next tokens here? 
+                println!("Error: Next element is not a codeblock!");
+                process_tokens(&tokens[1..], stack);    // Processes the next token as usual
+            }
+        } else {
+            println!("Error: Needs to be a codeblock after each for it to work!");
+        }
+    }
+
 }
 
 
