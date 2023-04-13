@@ -224,10 +224,14 @@ pub mod interpreter {
 
     /// Checks if the top element on the stack is a list. If it is a list it inserts the length of the list
     pub fn op_length(stack: &mut Stack, tokens: &[&str]){
-        if let Some(V::VList(list)) = stack.get(0){
-            stack.insert(0, V::VInt(list.len() as i32));
+        if let Some (top_element) = stack.get(0){
+            match top_element {
+                V::VList(list) => stack.insert(0, V::VInt(list.len() as i32)),
+                V::VString(s) => stack.insert(0, V::VInt(s.len() as i32 - 2)), // -2 for space before and after "
+                _ => println!("Error: Type not allowed for operation length"),
+            }
         } else {
-            println!("Error: Stack empty or top element not a list");
+            println!("Error: stack is empty cant get length of top element");
         }
         parser::process_tokens(&tokens[1..], stack);
     }
@@ -325,6 +329,44 @@ pub mod interpreter {
         parser::process_tokens(tokens, stack);
     }
 
+    /// Uses a list, starting value and code block tofor example sum up a list:
+    /// [1 5 9 20 ] 0 foldl { + }  on an empty stack will result in the stack: [35]
+    pub fn op_foldl(stack: &mut Stack, tokens: &[&str]){
+        if stack.len() >= 3 {
+            if let (Some(V::VList(list)), Some(V::VInt(init_acc)), Some(V::VCodeBlock(code_block))) = (stack.get(2), stack.get(1), stack.get(0)){
+                let mut acc = *init_acc;
+                // Clone the code block and split it into tokens without the {}
+                let code_block_clone = code_block.clone();
+                let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
+                let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+                for elem in list {
+                    let mut dummy_stack: Vec<V> = vec![elem.clone(), V::VInt(acc)]; // Insert element and acc into dummy stack
+                    parser::process_tokens(&code_block_tokens, &mut dummy_stack);  // process code block on dummy stack
+    
+                    if let Some(V::VInt(new_acc)) = dummy_stack.get(0) {          // Get the stack element
+                        acc = *new_acc;                                           // Update the acc
+                    } else {
+                        // Should i remove the elements for foldl here?
+                        println!("Error: An element in the list was not of integer type");
+                        stack.remove(0);
+                        stack.remove(0);
+                        stack.remove(0);
+                        return;
+                    }
+                }
+                stack.remove(0); // Remove the code block from the stack
+                stack.remove(0); // Remove the initial accumulator from the stack
+                stack.remove(0); // Remove the list from the stack
+                stack.insert(0, V::VInt(acc)); // Insert the accumulated value to the stack
+            }
+            else {
+                println!("Error: Types entered for fold operation were not correct");
+            }
+        } else {
+            println!("Error: Not enough elements on stack to perform foldl");
+        }
+    }
+
     /// Parse a string from stack to a integer or float and puts it back onto the stack
     pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str]) {
         if let Some(top_element) = stack.get_mut(0) {
@@ -354,6 +396,7 @@ pub mod interpreter {
         }
         parser::process_tokens(&tokens[1..], stack);
     }
+
 
     /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
     pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, process_next: bool) {
@@ -475,6 +518,7 @@ pub mod interpreter {
             parser::process_tokens(&tokens[index + 1..], stack);
         } 
     }
+
     /* 
     Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
     Needs to be fixed later.
@@ -552,9 +596,9 @@ pub mod parser {
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
                 "append" => interpreter::op_append(stack, &tokens),
-                "each" => map_or_each(stack, &tokens, false),
-                "map" => map_or_each(stack, &tokens, true),
-
+                "each" => map_or_each(stack, &tokens, false, false),
+                "map" => map_or_each(stack, &tokens, true, false),
+                "foldl" => map_or_each(stack, &tokens, false, true),
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => interpreter::op_pop(stack, &tokens),
                 _ => {
@@ -566,19 +610,22 @@ pub mod parser {
         }
     }
     
-    fn map_or_each (stack: &mut Stack, tokens: &[&str], do_map: bool){
+    fn map_or_each (stack: &mut Stack, tokens: &[&str], do_map: bool, do_fold: bool){
         // Need to process codeblock first since syntax is [] each {}
         if let Some(next_token) = tokens.get(1) {
             if next_token.starts_with("{") {
                 // Adds the codeblock to the stack
                 interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false);
-                // Finds the closing }, else the
+                // Finds the closing }
                 if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
                     if do_map {
                         interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
                     }
-                    else {
+                    else if !do_map && !do_fold {
                         interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
+                    }
+                    else {
+                        interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..])
                     }
                 } else {
                     // Should i let it process next tokens here?
