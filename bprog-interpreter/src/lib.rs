@@ -279,19 +279,16 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], stack);
     }
 
-    /// For each element in a list it executes a given codde block
-    /// Wanted to use:
-    /// if let (Some(V::VCodeBlock(code_block)), Some(V::VList(list))) = (stack.get(1), stack.get(0)){
-    /// to get the elements, but did not work because it caused conflictons with borrows of stack with the other code
+    /// For each element in a list it executes a given code block
     pub fn op_each(stack: &mut Stack, tokens: &[&str]) {
         if stack.len() >= 2 {
-            if let Some(V::VCodeBlock(code_block)) = stack.get(1) {
+            if let Some(V::VCodeBlock(code_block)) = stack.get(0) {
                 // Clone the code block and split it into tokens without the {}
                 let code_block_clone = code_block.clone(); 
                 let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
                 let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
 
-                if let V::VList(mut list) = stack[0].clone() {  // mutable reference to list
+                if let V::VList(mut list) = stack[1].clone() {  // mutable reference to list
                     for i in 0..list.len() {
                         let mut dummy_stack: Vec<V> = vec![list[i].clone()]; // stack becomes the current list element
                         parser::process_tokens(&code_block_tokens, &mut dummy_stack); // codeblock executed for list element
@@ -299,7 +296,7 @@ pub mod interpreter {
                             list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
                         }
                     }
-                    stack.remove(1); // Remove the code block from the stack
+                    stack.remove(0); // Remove the code block from the stack
                     stack[0] = V::VList(list); // Update the original list in the stack
                 } else {
                     println!("Error: The first element on the stack is not a list!");
@@ -310,7 +307,7 @@ pub mod interpreter {
         } else {
             println!("Error: Need at least two elements on the stack to perform each");
         }
-        parser::process_tokens(&tokens[1..], stack);
+        parser::process_tokens(tokens, stack);
     }
 
     /// Parse a string from stack to a integer or float and puts it back onto the stack
@@ -344,7 +341,7 @@ pub mod interpreter {
     }
 
     /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
-    pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String) {
+    pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, process_next: bool) {
         let mut new_string = String::new();            // {} and "" represented as a string
         let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
         let mut index = 0;
@@ -368,7 +365,7 @@ pub mod interpreter {
                 match start_char.as_str() {
                     "\"" => {                               // Just push token + space
                         new_string.push_str(token);
-                        if *tokens[i + 1] != end_char {     // Next token is not end_char
+                        if i + 1 < tokens.len() && *tokens[i + 1] != end_char {     // Next token is not end_char
                             new_string.push(' ');
                         }
                         i += 1;
@@ -396,14 +393,14 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
-                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string());
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true);
                             if let Some(value) = sub_stack.get(0) {         // Get the String, list or codeblock element from the sub stack
                                 new_string.push_str(&format!("{} ", value.to_string()));
                             }
                             i = j + 1;
                         } else {
                             new_string.push_str(token);
-                            if *tokens[i + 1] != end_char {
+                            if i + 1 < tokens.len() && *tokens[i + 1] != end_char {
                                 new_string.push(' ');
                             }
                             i += 1;
@@ -430,7 +427,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string());
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true);
                             if let Some(value) = sub_stack.get(0) {
                                 new_elements.push(value.clone());
                             }
@@ -459,7 +456,9 @@ pub mod interpreter {
         println!("Error: Missing closing quote");
         stack.truncate(initial_stack_len); // Restore the stack to its initial length
         }
-        parser::process_tokens(&tokens[index + 1..], stack);
+        if process_next {
+            parser::process_tokens(&tokens[index + 1..], stack);
+        } 
     }
     /* 
     Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
@@ -518,9 +517,9 @@ pub mod parser {
                 "||" => interpreter::op_binary(stack, OpBinary::Or, &tokens),
 
                 "not" => interpreter::op_not(stack, &tokens),
-                "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string()), 
-                "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string()), 
-                "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string()),
+                "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string(), true), 
+                "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string(), true), 
+                "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string(), true),
 
                 "dup" => interpreter::op_dup(stack, &tokens),
                 "swap" => interpreter::op_swap(stack, &tokens),
@@ -538,8 +537,28 @@ pub mod parser {
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
                 "append" => interpreter::op_append(stack, &tokens),
-                "each" => interpreter::op_each(stack, &tokens),
-
+                "each" => {
+                    // Need to process codeblock first since syntax is [] each {}
+                    if let Some(next_token) = tokens.get(1) {
+                        if next_token.starts_with("{") {
+                            // Adds the codeblock to the stack
+                            interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false);
+                            // Finds the closing }, else the
+                            if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
+                                interpreter::op_each(stack, &tokens[closing_brace_index + 2..]);
+                            } else {
+                                // Should i let it process next tokens here?
+                                println!("Error: Missing closing brace for the code block!");
+                            }
+                        } else {
+                            // Should i let it process next tokens here? 
+                            println!("Error: Next element is not a codeblock!");
+                            process_tokens(&tokens[1..], stack);    // Processes the next token as usual
+                        }
+                    } else {
+                        println!("Error: Needs to be a codeblock after each for it to work!");
+                    }
+                }
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => {
                     interpreter::op_pop(stack);
