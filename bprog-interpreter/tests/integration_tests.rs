@@ -33,12 +33,12 @@ mod test_literals {
 
     #[test]
     fn test_literal_bool_false() {
-        assert_eq!(t("False"), "False")
+        assert_eq!(t("false"), "false")
     }
 
     #[test]
     fn test_literal_bool_true() {
-        assert_eq!(t("True"), "True")
+        assert_eq!(t("true"), "true")
     }
 
     #[test]
@@ -48,7 +48,7 @@ mod test_literals {
 
     #[test]
     fn test_literal_list_of_different_types() {
-        assert_eq!(t("[ False [ ] True [ 1 2 ] ]"), "[False,[],True,[1,2]]")
+        assert_eq!(t("[ false [ ] true [ 1 2 ] ]"), "[false,[],true,[1,2]]")
     }
 
     #[test]
@@ -97,7 +97,7 @@ mod test_arithmetic_with_type_coercion {
 
     #[test]
     fn test_addition_with_float() {
-        assert_eq!(t("1 1.0 +"), "2.0");
+        assert_eq!(t("1 1.0 + "), "2.0");
     }
 
     #[test]
@@ -121,22 +121,22 @@ mod test_bool_operations {
 
     #[test]
     fn test_and_operation() {
-        assert_eq!(t("False False &&"), "False");
+        assert_eq!(t("false false &&"), "false");
     }
 
     #[test]
     fn test_or_operation() {
-        assert_eq!(t("False True ||"), "True");
+        assert_eq!(t("false true ||"), "true");
     }
 
     #[test]
     fn test_not_operation_false() {
-        assert_eq!(t("False not"), "True");
+        assert_eq!(t("false not"), "true");
     }
 
     #[test]
     fn test_not_operation_true() {
-        assert_eq!(t("True not"), "False");
+        assert_eq!(t("true not"), "false");
     }
 }
 
@@ -145,62 +145,62 @@ mod test_comparison {
 
     #[test]
     fn test_less_than_operation() {
-        assert_eq!(t("20 10 <"), "False");
+        assert_eq!(t("20 10 <"), "false");
     }
 
     #[test]
     fn test_greater_than_operation() {
-        assert_eq!(t("20 10 >"), "True");
+        assert_eq!(t("20 10 >"), "true");
     }
 
     #[test]
     fn test_greater_than_operation_with_float() {
-        assert_eq!(t("20 10.0 >"), "True");
+        assert_eq!(t("20 10.0 >"), "true");
     }
 
     #[test]
     fn test_float_greater_than_operation() {
-        assert_eq!(t("20.0 20.0 >"), "False");
+        assert_eq!(t("20.0 20.0 >"), "false");
     }
 
     #[test]
     fn test_equality_operation() {
-        assert_eq!(t("10 10 =="), "True");
+        assert_eq!(t("10 10 =="), "true");
     }
 
     #[test]
     fn test_equality_operation_with_float() {
-        assert_eq!(t("10 10.0 =="), "True");
+        assert_eq!(t("10 10.0 =="), "true");
     }
 
     #[test]
     fn test_boolean_equality_operation() {
-        assert_eq!(t("True True =="), "True");
+        assert_eq!(t("true true =="), "true");
     }
 
     #[test]
     fn test_nested_equality_operation() {
-        assert_eq!(t("True 40 40 == =="), "True");
+        assert_eq!(t("true 40 40 == =="), "true");
     }
 
     #[test]
     fn test_string_equality_operation() {
-        assert_eq!(t("\" abba \" \" abba \" =="), "True");
+        assert_eq!(t("\" abba \" \" abba \" =="), "true");
     }
 
     #[test]
     fn test_empty_list_equality_operation() {
-        assert_eq!(t("[ ] [ ] =="), "True");
+        assert_eq!(t("[ ] [ ] =="), "true");
     }
 
     #[test]
     fn test_list_equality_operation() {
-        assert_eq!(t("[ 1 2 ] [ 1 2 ] =="), "True");
+        assert_eq!(t("[ 1 2 ] [ 1 2 ] =="), "true");
     }
 
     #[test]
     fn test_nested_list_equality_operation() {
-        assert_eq!(t(" [ [ ] ] [ [ ] ] =="), "True");
+        assert_eq!(t(" [ [ ] ] [ [ ] ] =="), "true");
     }
 }
 
@@ -280,12 +280,12 @@ mod test_lists {
 
     #[test]
     fn test_list_empty_false() {
-        assert_eq!(t("[ 1 2 ] empty"), "False");
+        assert_eq!(t("[ 1 2 ] empty"), "false");
     }
 
     #[test]
     fn test_list_empty_true() {
-        assert_eq!(t("[ ] empty"), "True");
+        assert_eq!(t("[ ] empty"), "true");
     }
 
     #[test]
@@ -445,12 +445,12 @@ mod test_if {
 
     #[test]
     fn test_if_true() {
-        assert_eq!(t("True if { 20 } { }"), "20");
+        assert_eq!(t("true if { 20 } { }"), "20");
     }
 
     #[test]
     fn test_if_true_block() {
-        assert_eq!(t("True if { 20 10 + } { 3 }"), "30");
+        assert_eq!(t("true if { 20 10 + } { 3 }"), "30");
     }
 
     #[test]
@@ -460,12 +460,12 @@ mod test_if {
 
     #[test]
     fn test_if_false() {
-        assert_eq!(t("False if { } { 45 }"), "45");
+        assert_eq!(t("false if { } { 45 }"), "45");
     }
 
     #[test]
     fn test_if_nested() {
-        assert_eq!(t("True if { False if { 50 } { 100 } } { 30 }"), "100");
+        assert_eq!(t("true if { false if { 50 } { 100 } } { 30 }"), "100");
     }
 }
 
@@ -474,12 +474,12 @@ mod test_if_without_quotation {
 
     #[test]
     fn test_if_true_condensed() {
-        assert_eq!(t("True if 20 { }"), "20");
+        assert_eq!(t("true if 20 { }"), "20");
     }
 
     #[test]
     fn test_if_true_block_condensed() {
-        assert_eq!(t("True if { 20 10 + } 3"), "30");
+        assert_eq!(t("true if { 20 10 + } 3"), "30");
     }
 
     #[test]
@@ -489,12 +489,12 @@ mod test_if_without_quotation {
 
     #[test]
     fn test_if_false_condensed() {
-        assert_eq!(t("False if { } 45"), "45");
+        assert_eq!(t("false if { } 45"), "45");
     }
 
     #[test]
     fn test_if_nested_condensed() {
-        assert_eq!(t("True if { False if 50 100 } 30"), "100");
+        assert_eq!(t("true if { false if 50 100 } 30"), "100");
     }
 }
 
@@ -551,14 +551,14 @@ mod test_functions {
 
     #[test]
     fn test_odd_function() {
-        assert_eq!(t("odd { dup 2 div swap 2 / == if False True } fun \
-                  2 odd"), "False");
+        assert_eq!(t("odd { dup 2 div swap 2 / == if false true } fun \
+                  2 odd"), "false");
     }
 
     #[test]
     fn test_odd_function_true_case() {
-        assert_eq!(t("odd { dup 2 div swap 2 / == if False True } fun \
-                  3 odd"), "True");
+        assert_eq!(t("odd { dup 2 div swap 2 / == if false true } fun \
+                  3 odd"), "true");
     }
 
     #[test]
@@ -576,10 +576,10 @@ mod test_functions {
 
     #[test]
     fn test_odd_to_list_gen1to_num_functions_combined() {
-        assert_eq!(t("odd { dup 2 div swap 2 / == if False True } fun \
+        assert_eq!(t("odd { dup 2 div swap 2 / == if false true } fun \
                   toList { [ ] swap times cons } fun \
                   gen1toNum { max swap := 1 loop { dup max > } { dup 1 + } } fun \
-                  4 gen1toNum 5 toList map odd"), "[True,False,True,False,True]");
+                  4 gen1toNum 5 toList map odd"), "[true,false,true,false,true]");
     }
 
     #[test]

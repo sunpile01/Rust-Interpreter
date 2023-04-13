@@ -26,7 +26,9 @@ pub mod interpreter {
                 (V::VFloat(a), V::VFloat(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a * b)),
 
                 (V::VInt(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b)),
+                (V::VFloat(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i32 / b as i32)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a / b)),
+                (V::VInt(a), V::VInt(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a as f32 / b as f32)),                
 
                 (V::VInt(a), V::VInt(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
@@ -38,13 +40,35 @@ pub mod interpreter {
                 // Searched a bit online and found that comparing one float subtracted by another to epsilon is better
                 // than using == which can cause problems
                 (V::VFloat(a), V::VFloat(b), OpBinary::Equality) => stack.insert(0, V::VBool((a - b).abs() < f32::EPSILON)),
-                
+                (V::VString(a), V::VString(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
+                (V::VList(a), V::VList(b), OpBinary::Equality) => {stack.insert(0, V::VBool(a == b))}
+
                 (V::VBool(a), V::VBool(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
                 (V::VBool(a), V::VBool(b), OpBinary::And) => stack.insert(0, V::VBool(a && b)),
                 (V::VBool(a), V::VBool(b), OpBinary::Or) => stack.insert(0, V::VBool(a || b)),
 
                 // Allowed operations where types do not fully match
-                // TODO
+                // Need both possible orders of the types, so double up everywhere
+                (V::VInt(a), V::VFloat(b), OpBinary::Add) => stack.insert(0, V::VFloat(a as f32 + b)),
+                (V::VFloat(a), V::VInt(b), OpBinary::Add) => stack.insert(0, V::VFloat(a + b as f32)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a as f32 * b)),
+                (V::VFloat(a), V::VInt(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a * b as f32)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b as i32)),
+                (V::VFloat(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i32 / b)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a as f32 / b )),
+                (V::VFloat(a), V::VInt(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a  / b as f32)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a as f32 > b )),
+                (V::VFloat(a), V::VInt(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a  > b as f32)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::RGreater) => stack.insert(0, V::VBool((a as f32) < b  )),
+                (V::VFloat(a), V::VInt(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b as f32)),
+
+                (V::VInt(a), V::VFloat(b), OpBinary::Equality) => stack.insert(0, V::VBool((a as f32 - b).abs() < f32::EPSILON)),
+                (V::VFloat(a), V::VInt(b), OpBinary::Equality) => stack.insert(0, V::VBool((a - b as f32).abs() < f32::EPSILON)),
                 _ => {
                     println!("The types of the top two elements are not compatible for {:?} operation.", op);
                     succesfull = false;
@@ -219,10 +243,23 @@ pub mod interpreter {
 
     /// Checks if the top element on the stack is a list. If it is a list it inserts the length of the list
     pub fn op_length(stack: &mut Stack, tokens: &[&str]){
-        if let Some (top_element) = stack.get(0){
+        if let Some (top_element) = stack.get(0).cloned(){  // Need cloned to avoid borrow issues below
             match top_element {
-                V::VList(list) => stack.insert(0, V::VInt(list.len() as i32)),
-                V::VString(s) => stack.insert(0, V::VInt(s.len() as i32 - 2)), // -2 for space before and after "
+                V::VList(list) => {
+                    stack.remove(0);
+                    stack.insert(0, V::VInt(list.len() as i32))
+                }
+                V::VCodeBlock(c) => {
+                    // Need to get the tokens from the codeblock since it is a string
+                    stack.remove(0);
+                    let code_block_no_braces =&c[1..c.len() - 1];
+                    let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+                    stack.insert(0, V::VInt(code_block_tokens.len() as i32))
+                }
+                V::VString(s) =>{ 
+                    stack.remove(0);
+                    stack.insert(0, V::VInt(s.len() as i32 - 2))  // -2 for space before and after "
+                } 
                 _ => println!("Error: Type not allowed for operation length"),
             }
         } else {
@@ -644,6 +681,8 @@ pub mod parser {
 pub mod types {
     use core::fmt;
     use std::str::FromStr;
+    use ryu::Buffer;
+
 
     // Represents the program stack
     pub type Stack = Vec<WValue>;
@@ -661,22 +700,27 @@ pub mod types {
         And,
         Or 
     }
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq)]  // PartialEq so we can compare to lists, debug for printing 
     pub enum WValue {
         VInt (i32),
         VFloat (f32),
         VBool (bool),
         VString (String),
         VList (Vec<WValue>),
-        VCodeBlock (String),
+        VCodeBlock (String),    // Maybe should have been a vector but hard to change this late
         VOther (String)
     }
+    
     // To display the wrapped types as strings
     impl fmt::Display for WValue {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self {
                 WValue::VInt(n) => write!(f, "{}", n),
-                WValue::VFloat(n) => write!(f, "{}", n),
+                WValue::VFloat(fl) => {
+                    
+                    let mut buf = ryu::Buffer::new(); // Searched online and found the crate ryu converting to
+                    write!(f, "{}", buf.format(*fl)) // converting to floating points with correct Decimal values
+                }
                 WValue::VBool(b) => write!(f, "{}", b),
                 WValue::VString(s) => write!(f, "{}", s),
                 WValue::VList(list) => {   // Vec<WValue> does not implement fmt::Display so need to do it customly
@@ -709,7 +753,7 @@ pub mod types {
                 WValue::VOther(s.to_string())
             }
         }
-    }
+    } 
 
 }
 
