@@ -20,6 +20,7 @@ fn main() {
 
         let output: String = stack
         .iter() // Iterator for the stack items
+        // Can maybe be removed?? 
         .map(|v| match v { // For every item in the stack pattern match on value 
             types::WValue::VString(s) => format!("{}", s),
             num => format!("{}", num),  

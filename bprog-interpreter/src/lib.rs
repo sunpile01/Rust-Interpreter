@@ -1,13 +1,8 @@
+
 pub mod interpreter {
     use super::parser;
 
     use super::types::{Stack, WValue as V, OpBinary};
-    use std::any::{Any, TypeId};
-
-    fn print_type<T: Any>(_: &T) {
-        let type_id = TypeId::of::<T>();
-        println!("{:?}", type_id);
-    }
 
     /// Does the arithmetic operation sent as a parameter on the top two elements of the stack
     pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str]) {
@@ -599,6 +594,8 @@ pub mod parser {
                 "each" => map_or_each(stack, &tokens, false, false),
                 "map" => map_or_each(stack, &tokens, true, false),
                 "foldl" => map_or_each(stack, &tokens, false, true),
+
+                
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => interpreter::op_pop(stack, &tokens),
                 _ => {
@@ -714,4 +711,21 @@ pub mod types {
         }
     }
 
+}
+
+// integration testing
+pub fn t(input: &str) -> String {
+    use parser::process_input;
+    // Warning: don't move this function to another module, as integration tests in
+    // directory `tests` with `cargo test` will only look into lib.rs, so make your parse and
+    // execution functions public and import them here.
+    let mut stack = types::Stack::new();
+    // The following test function should:
+    // 1. invoke parser (+lexer) with input string
+    // 2. invoke interpreter with tokens from parser as input
+    // 3. transform the result to a string (tip: implement Display traits)
+    process_input(input, &mut stack);
+
+    let output: String = stack[0].to_string();
+    output
 }
