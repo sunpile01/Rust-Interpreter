@@ -1,10 +1,12 @@
 mod lib;
 
 use crate::lib::parser;
-use crate::lib::types;
+use crate::lib::types::{WValue as V, Stack};
+use std::collections::HashMap;
 use std::io::{self, Write};
 fn main() {
-    let mut stack = types::Stack::new();
+    let mut stack = Stack::new();
+    let mut symbol_table: HashMap<String, V> = HashMap::new();
 
     loop {
         print!("Bprog-Interpreter> ");
@@ -16,13 +18,13 @@ fn main() {
         if input.trim() == "exit" {                 // Exit the program
             break;
         }
-        parser::process_input(&input, &mut stack);
+        parser::process_input(&input, &mut stack, &mut symbol_table);
 
         let output: String = stack
         .iter() // Iterator for the stack items
         // Can maybe be removed?? 
         .map(|v| match v { // For every item in the stack pattern match on value 
-            types::WValue::VString(s) => format!("{}", s),
+            V::VString(s) => format!("{}", s),
             num => format!("{}", num),  
         })
         .collect::<Vec<String>>()     // Collects the transformed values into a vector
