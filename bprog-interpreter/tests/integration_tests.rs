@@ -43,12 +43,12 @@ mod test_literals {
 
     #[test]
     fn test_literal_nested_list() {
-        assert_eq!(t("[ [ ] [ ] ]"), "[[],[]]")
+        assert_eq!(t("[ [ ] [ ] ]"), "[[], []]")
     }
 
     #[test]
     fn test_literal_list_of_different_types() {
-        assert_eq!(t("[ false [ ] true [ 1 2 ] ]"), "[false,[],true,[1,2]]")
+        assert_eq!(t("[ false [ ] true [ 1 2 ] ]"), "[false, [], true, [1, 2]]")
     }
 
     #[test]
@@ -58,12 +58,12 @@ mod test_literals {
 
     #[test]
     fn test_literal_block() {
-        assert_eq!(t("{ 20 10 + }"), "{ 20 10 + }")
+        assert_eq!(t("{ 20 10 + }"), "{20 10 +}")
     }
 
     #[test]
     fn test_literal_list_of_blocks() {
-        assert_eq!(t("[ { + } { 10 + } { 20 10 + } ]"), "[{ + },{ 10 + },{ 20 10 + }]")
+        assert_eq!(t("[ { + } { 10 + } { 20 10 + } ]"), "[{+}, {10 +}, {20 10 +}]")
     }
 }
 
@@ -270,7 +270,7 @@ mod test_lists {
 
     #[test]
     fn test_list_creation() {
-        assert_eq!(t("[ 1 2 3 ]"), "[1,2,3]");
+        assert_eq!(t("[ 1 2 3 ]"), "[1, 2, 3]");
     }
 
     #[test]

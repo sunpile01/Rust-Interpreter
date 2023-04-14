@@ -202,11 +202,20 @@ pub mod interpreter {
         }
         parser::process_tokens(&tokens[1..], stack);
     }
+
+    /*VInt (i32),
+        VFloat (f32),
+        VBool (bool),
+        VString (String),
+        VList (Vec<WValue>),
+        VCodeBlock (String),    // Maybe should have been a vector but hard to change this late
+        VOther (String)
+     */
     /// Returns the first element from a list if the first stack element is a list
     pub fn op_head(stack: &mut Stack, tokens: &[&str]){
-        if let Some(V::VList(list)) = stack.get(0){ // if top element exists and is a VList
-            if !list.is_empty() {
-                
+        if let Some(V::VList(list)) = stack.get(0).cloned(){ // if top element exists and is a VList
+            if !list.is_empty() {     
+                stack.insert(0, list[0].clone()); // need to clone bcause WValue does not implement the Copy trait              
             } else {
                 println!("Error: List is empty, cant return an element");
             }
@@ -219,9 +228,13 @@ pub mod interpreter {
 
     /// Returns the last element from a list if the first stack element is a list
     pub fn op_tail(stack: &mut Stack, tokens: &[&str]) {
-        if let Some(V::VList(list)) = stack.get(0) {    // if top element exists and is a VList
+        if let Some(V::VList(list)) = stack.get(0).cloned() {    // if top element exists and is a VList
             if !list.is_empty() {
-                
+                let mut new_list: Vec<V> = Vec::new();
+                for list_element in &list[1..]{
+                    new_list.push(list_element.clone());        // Need to push cloned element since WValue (V)
+                }                                               // Does not implement the Coopy trade so can not be moved
+                stack.insert(0, V::VList(new_list));
             } else {
                 println!("Error: List is empty, cant return an element");
             }
@@ -355,7 +368,7 @@ pub mod interpreter {
         } else {
             println!("Error: Need at least two elements on the stack to perform operation");
         }
-        parser::process_tokens(tokens, stack);
+        parser::process_tokens(&tokens, stack);
     }
 
     /// Uses a list, starting value and code block tofor example sum up a list:
@@ -392,7 +405,7 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on stack to perform foldl");
         }
-        parser::process_tokens(tokens, stack);
+        parser::process_tokens(&tokens, stack);
     }
 
 
@@ -423,7 +436,26 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform if")
         }
-        process_tokens(tokens, stack);
+        parser::process_tokens(&tokens, stack);
+    }
+
+    /// Execute a code block x number of times
+    pub fn op_times (stack: &mut Stack, tokens: &[&str]){
+        if stack.len() >= 2 {
+            if let (Some(V::VInt(num_times)), Some(V::VCodeBlock(code_block))) = (stack.get(1).cloned(), stack.get(0).cloned()) {
+                stack.remove(0);
+                stack.remove(0);
+                let code_block_tokens = parse_code_block_tokens(&code_block);
+                for _ in 0..num_times {
+                    parser::process_tokens(&code_block_tokens, stack);
+                }
+            } else {
+                println!("Error: Not correct types for the times operation! (Int, codeblock)");
+            }
+        } else {
+            println!("Error: Not enough elements for times operation!");
+        }
+        parser::process_tokens(&tokens, stack);
     }
 
 
@@ -579,7 +611,7 @@ pub mod interpreter {
         } 
     }
 
-    
+    /// TODO DOES NOT HANDLE STRINGS INSIDE CODEBLOCKS CORRECTLY
     /// Helper function to parse the codeblock into a vector of tokens
     fn parse_code_block_tokens(code_block: &str) -> Vec<&str> {
         let code_block_no_braces = &code_block[1..code_block.len() - 1];
@@ -587,37 +619,15 @@ pub mod interpreter {
         code_block_tokens
     }
 
-    /* 
-    Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
-    Needs to be fixed later.
-    /// Processes a String or CodeBlock item that will be added to the list vector.
-    /// Many parameters because i send what needs to be updated as reference, so I dont have to duplicate code
-    /// in the op_enclosed function
-    fn string_or_codeblock(token: &str, i: usize, tokens: &[&str], starting_symbol: &str) -> (usize, Option<V>) {
-        let mut sub_tokens = Vec::new();    // Vec with tokens following initial "
-        sub_tokens.push(starting_symbol);  
-        let mut j = i + 1;
-        // Goes through all the tokens untill it finds the closing " and adds them to the new stack
-        while let Some(token) = tokens.get(j) {
-            sub_tokens.push(token);
-            if token.ends_with(starting_symbol) {
-                break;
-            }
-            j += 1;
-        }
-        let mut sub_stack: Stack = Vec::new();  // Dummy stack to send to op_enclosed
-        op_enclosed(&mut sub_stack, false, &sub_tokens, starting_symbol.to_string());
-        let value = sub_stack.get(0).and_then(|v| v.clone().ok());   // Get the String element from the sub stack
-        (j, value)
-    }
-    */
 }
 
 
 pub mod parser {
 
+    use std::collections::HashMap;
+
     use super::interpreter;
-    use super::types::{Stack, OpBinary};
+    use super::types::{Stack, OpBinary, WValue};
     
     /// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
     /// execute the corresponding code depending on the tokens. 
@@ -629,7 +639,7 @@ pub mod parser {
     
     /// Processes the tokens sent by process_input and handles the different type of tokens
     /// Calls itself recursively with the next token in the list until there are not tokens left
-    pub fn process_tokens(tokens: &[&str], stack: &mut Stack) {
+    pub fn process_tokens(tokens: &[&str], stack: &mut Stack, symbol_table: &mut HashMap<String, WValue>) {
         if !tokens.is_empty() {
             match tokens[0] {
                 "*" => interpreter::op_binary(stack, OpBinary::Multiply,  &tokens), 
@@ -669,6 +679,7 @@ pub mod parser {
                 "foldl" => map_or_each(stack, &tokens, 2),
                 
                 "if" => map_or_each(stack, &tokens, 3),
+                "times" => map_or_each(stack, tokens, 4),
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => interpreter::op_pop(stack, &tokens),
                 _ => {
@@ -702,6 +713,7 @@ pub mod parser {
                                 println!("Error: If statements needs exactly 2 codeblocks after!");
                             }
                         }
+                        4 => interpreter::op_times(stack, &tokens[closing_brace_index + 2..]),
                         _ => {} // Should never be called with anything other than 0,1,2,3
                     }
                 } else {
@@ -724,7 +736,7 @@ pub mod parser {
 pub mod types {
     use core::fmt;
     use std::str::FromStr;
-    use ryu::Buffer;
+    use ryu;
 
 
     // Represents the program stack
