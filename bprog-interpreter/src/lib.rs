@@ -7,7 +7,7 @@ pub mod interpreter {
     use super::types::{Stack, WValue as V, OpBinary};
 
     /// Does the arithmetic operation sent as a parameter on the top two elements of the stack
-    pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str],  symbol_table: &mut HashMap<String, V>) {
+    pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str],  var_and_fun: &mut HashMap<String, V>) {
         if stack.len() < 2 {
             println!("Error: The stack needs minimum two elements for binary operation!");
         } else {
@@ -27,6 +27,7 @@ pub mod interpreter {
                 (V::VInt(a), V::VInt(b), OpBinary::Multiply) => stack.insert(0, V::VInt(a * b)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a * b)),
 
+                // TODO NOT ALLOW DIVISION BY 0
                 (V::VInt(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i32 / b as i32)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a / b)),
@@ -81,17 +82,17 @@ pub mod interpreter {
                 stack.remove(1);
             }
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }   
     
     /// Popps an item of the stack
-    pub fn op_pop(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_pop(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if !stack.is_empty() {
             stack.remove(0);
         } else {
-            println!("Error: Pop operation not executed, stack was already empty");
+            panic!("Pop on empty stack not allowed!");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Turns the token into a WValue
@@ -104,7 +105,7 @@ pub mod interpreter {
     }
 
     /// Duplicates the top element of the stack
-    pub fn op_dup(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_dup(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if stack.len() >= 1 {
             let top_element = stack[0].clone();
             stack.insert(0, top_element);
@@ -113,22 +114,22 @@ pub mod interpreter {
             println!("Error: No elemets on the stack to duplicate!");
         }
 
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Swaps the order of the top two elements on the stack
-    pub fn op_swap(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_swap(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if stack.len() >= 2 {
             stack.swap(0, 1);
         }
         else {
             println!("Error: Need atleast two elements to perform swap!");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Prints the top element on the stack, works only for String types
-    pub fn op_print(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_print(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if let Some(top_element) = stack.get(0) {       // Get top element if there is one 
             match top_element {
                 V::VString(s) => {                  // Top element is of type String
@@ -143,20 +144,20 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to print!");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Reads user input and adds it to the stack as a VString
-    pub fn op_read(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_read(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         use std::io;                                            // Only function that uses IO
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap().to_string(); // Get the input and store it in the input variable
         input = input.trim_end().to_string();                   // Remove \n and turn to string
         stack.insert(0, V::VString(format!("\"{}\"", input)));  // Add it to stack with ""
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     } 
 
-    pub fn op_words(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_words(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if let Some(top_element) = stack.get(0){
             match top_element {
                 V::VString(s) => {                      // Top element is of type String
@@ -177,13 +178,13 @@ pub mod interpreter {
         } else {
             println!("Error: Stack is empty, cant get the top element!");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
 
     }
 
 
     /// Changes the top element to the not of it
-    pub fn op_not(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_not(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
                 V::VBool(b) => {       
@@ -202,7 +203,7 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to perform logical not on!")
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /*VInt (i32),
@@ -214,7 +215,7 @@ pub mod interpreter {
         VOther (String)
      */
     /// Returns the first element from a list if the first stack element is a list
-    pub fn op_head(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_head(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if let Some(V::VList(list)) = stack.get(0).cloned(){ // if top element exists and is a VList
             if !list.is_empty() {     
                 stack.insert(0, list[0].clone()); // need to clone bcause WValue does not implement the Copy trait              
@@ -225,11 +226,11 @@ pub mod interpreter {
         else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Returns the last element from a list if the first stack element is a list
-    pub fn op_tail(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_tail(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if let Some(V::VList(list)) = stack.get(0).cloned() {    // if top element exists and is a VList
             if !list.is_empty() {
                 let mut new_list: Vec<V> = Vec::new();
@@ -243,21 +244,21 @@ pub mod interpreter {
         } else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
     /// Checks if the top element on the stack is a list. If it is a list and it is empty,
     ///  it inserts false into the stack, if it is not empty it inserts true.
-    pub fn op_empty(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_empty(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if let Some(V::VList(list)) = stack.get(0){
             stack.insert(0, V::VBool(list.is_empty()));
         } else {
             println!("Error: Stack empty or top element not a list");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Checks if the top element on the stack is a list. If it is a list it inserts the length of the list
-    pub fn op_length(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_length(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if let Some (top_element) = stack.get(0).cloned(){  // Need cloned to avoid borrow issues below
             match top_element {
                 V::VList(list) => {
@@ -280,12 +281,12 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty cant get length of top element");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Append an element to the front of a list. Not sure about how the order should be done here
     /// Works in this order 3 [ 4 ] cons
-    pub fn op_cons (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_cons (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if stack.len() >= 2 {
             let item = stack.remove(1);
             if let Some(V::VList(list)) = stack.get_mut(0) {
@@ -297,11 +298,11 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform cons");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Appends one list to the end of another list. Not sure how the order should be done here
-    pub fn op_append (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_append (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if stack.len() >= 2{
             if let Some(V::VList(list2)) = stack.get(0){    // Get the list to be appended to the other
                 let list2_clone = list2.clone();
@@ -315,24 +316,24 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform append")
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Executes the tokens within a codeblock
-    pub fn op_exec (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_exec (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned(){ // Need to clone since we remove an element later
             stack.remove(0);
             
             let code_block_tokens: Vec<&str> = parse_code_block_tokens(&code_block);
-            parser::process_tokens(&code_block_tokens, stack, symbol_table);  // Process the codeblock
+            parser::process_tokens(&code_block_tokens, stack, var_and_fun);  // Process the codeblock
         } else {
             println!("Error: Stack empty or top element not a codeblock");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// For each element in a list it executes a given code block
-    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i32, symbol_table: &mut HashMap<String, V>) {
+    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i32, var_and_fun: &mut HashMap<String, V>) {
         if stack.len() >= 2 {
             if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned() {
                 // Clone the code block and split it into tokens without the {}
@@ -347,7 +348,7 @@ pub mod interpreter {
     
                     for i in 0..list.len() {
                         let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
-                        parser::process_tokens(&code_block_tokens, &mut dummy_stack, symbol_table); // codeblock executed for list element
+                        parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
     
                         if !dummy_stack.is_empty() {
                             if is_map == 0 {
@@ -370,50 +371,86 @@ pub mod interpreter {
         } else {
             println!("Error: Need at least two elements on the stack to perform operation");
         }
-        parser::process_tokens(&tokens, stack, symbol_table);
+        parser::process_tokens(&tokens, stack, var_and_fun);
     }
 
+    /// GOT REALLY UGLY WHEN ADDING THE OPTION FOR SINGLE OPERATIONS INSTEAD OF CODEBLOCK
     /// Uses a list, starting value and code block tofor example sum up a list:
     /// [1 5 9 20 ] 0 foldl { + }  on an empty stack will result in the stack: [35]
-    pub fn op_foldl(stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_foldl(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        let mut process_next = false;
         if stack.len() >= 3 {
-            if let (Some(V::VList(list)), Some(V::VInt(init_acc)), Some(V::VCodeBlock(code_block))) = (stack.get(2), stack.get(1), stack.get(0)){
+            if let (Some(V::VList(list)), Some(V::VInt(init_acc))) = (stack.get(2), stack.get(1)) {
                 let mut acc = *init_acc;
-                // Clone the code block and split it into tokens without the {}
-                let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
-                for elem in list {
-                    let mut dummy_stack: Vec<V> = vec![elem.clone(), V::VInt(acc)]; // Insert element and acc into dummy stack
-                    parser::process_tokens(&code_block_tokens, &mut dummy_stack, symbol_table);  // process code block on dummy stack
     
-                    if let Some(V::VInt(new_acc)) = dummy_stack.get(0) {          // Get the stack element
-                        acc = *new_acc;                                           // Update the acc
-                    } else {
-                        // Should i remove the elements for foldl here?
-                        println!("Error: An element in the list was not of integer type");
-                        stack.remove(0);
-                        stack.remove(0);
-                        stack.remove(0);
+                // Check if the top element is a valid operation or a code block
+                match stack.get(0) {
+                    Some(V::VCodeBlock(code_block)) => {
+                        // Clone the code block and split it into tokens without the {}
+                        let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
+    
+                        for elem in list {
+                            let mut dummy_stack: Vec<V> = vec![elem.clone(), V::VInt(acc)]; // Insert element and acc into dummy stack
+                            parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // process code block on dummy stack
+    
+                            if let Some(V::VInt(new_acc)) = dummy_stack.get(0) { // Get the stack element
+                                acc = *new_acc; // Update the acc
+                            } else {
+                                // Should i remove the elements for foldl here?
+                                println!("Error: An element in the list was not of integer type");
+                                stack.remove(0);
+                                stack.remove(0);
+                                stack.remove(0);
+                                return;
+                            }
+                        }
+                    }
+                    Some(operation) if parser::is_valid_element(operation.to_string().as_str()) => {
+                        process_next = true;
+                        for elem in list {
+                            let mut dummy_stack: Vec<V> = vec![elem.clone(), V::VInt(acc)]; // Insert element and acc into dummy stack
+                            parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun); // process valid operation on dummy stack
+    
+                            if let Some(V::VInt(new_acc)) = dummy_stack.get(0) { // Get the stack element
+                                acc = *new_acc; // Update the acc
+                            } else {
+                                // Should i remove the elements for foldl here?
+                                println!("Error: An element in the list was not of integer type");
+                                stack.remove(0);
+                                stack.remove(0);
+                                stack.remove(0);
+                                return;
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Error: Top element on stack must be a code block or a valid operation");
                         return;
                     }
                 }
-                stack.remove(0); // Remove the code block from the stack
+    
+                stack.remove(0); // Remove the code block or valid operation from the stack
                 stack.remove(0); // Remove the initial accumulator from the stack
                 stack.remove(0); // Remove the list from the stack
                 stack.insert(0, V::VInt(acc)); // Insert the accumulated value to the stack
-            }
-            else {
+            } else {
                 println!("Error: Types entered for fold operation were not correct");
             }
         } else {
             println!("Error: Not enough elements on stack to perform foldl");
         }
-        parser::process_tokens(&tokens, stack, symbol_table);
+        if !process_next{
+            parser::process_tokens(&tokens, stack, var_and_fun);
+        }
+        else {
+            parser::process_tokens(&tokens[1..], stack, var_and_fun)
+        }
     }
 
 
     /// syntax: Condition if Then Else. Gets the condition and then else block from the stack.
     /// If condition is true executes the Then block, otherwise it executes the Else block
-    pub fn op_if (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_if (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if stack.len() >= 3 {
             if let (Some(V::VBool(condition)), Some(V::VCodeBlock(then_block)), Some(V::VCodeBlock(else_block))) 
                                         = (stack.get(2).cloned(), stack.get(1).cloned(), stack.get(0).cloned()){                         
@@ -424,10 +461,10 @@ pub mod interpreter {
                     println! ("before process_tokens: {:?}", then_block);
                     let code_block_tokens = parse_code_block_tokens(&then_block);
                     println! ("{:?}", code_block_tokens);
-                    parser::process_tokens(&code_block_tokens, stack, symbol_table);
+                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
                 } else {
                     let code_block_tokens = parse_code_block_tokens(&else_block);
-                    parser::process_tokens(&code_block_tokens, stack, symbol_table);
+                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
                 }
             } else {
                 println!("Error: Wrong types provided for if statement!");
@@ -438,18 +475,18 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform if")
         }
-        parser::process_tokens(&tokens, stack, symbol_table);
+        parser::process_tokens(&tokens, stack, var_and_fun);
     }
 
     /// Execute a code block x number of times
-    pub fn op_times (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_times (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         if stack.len() >= 2 {
             if let (Some(V::VInt(num_times)), Some(V::VCodeBlock(code_block))) = (stack.get(1).cloned(), stack.get(0).cloned()) {
                 stack.remove(0);
                 stack.remove(0);
                 let code_block_tokens = parse_code_block_tokens(&code_block);
                 for _ in 0..num_times {
-                    parser::process_tokens(&code_block_tokens, stack, symbol_table);
+                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
                 }
             } else {
                 println!("Error: Not correct types for the times operation! (Int, codeblock)");
@@ -457,15 +494,39 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements for times operation!");
         }
-        parser::process_tokens(&tokens, stack, symbol_table);
+        parser::process_tokens(&tokens, stack, var_and_fun);
     }
     
-    pub fn op_assign_variable (stack: &mut Stack, tokens: &[&str], symbol_table: &mut HashMap<String, V>){
+    pub fn op_assign_variable (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        if stack.len() >= 2 {
+            let value = stack.remove(0);
+            if let V::VOther(key) = stack.remove(0) {
+                var_and_fun.insert(key, value);
+            } else {
+                println!("Error: The second element on the stack must be a string for the key");
+            }
+        } else {
+            println!("Error: Not enough elements on the stack");
+        }
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
+    }
 
+    pub fn op_assign_function (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        if stack.len() >= 2 {
+            let code_block = stack.remove(0);
+            if let V::VOther(key) = stack.remove(0) {
+                var_and_fun.insert(key, code_block);
+            } else {
+                println!("Error: The second element on the stack must be a string for the key");
+            }
+        } else {
+            println!("Error: Not enough elements on the stack");
+        }
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
     /// Parse a string from stack to a integer or float and puts it back onto the stack
-    pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str], symbol_table: &mut HashMap<String, V>) {
+    pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if let Some(top_element) = stack.get_mut(0) {
             match top_element {
                 V::VString(s) => {
@@ -491,16 +552,16 @@ pub mod interpreter {
         } else {
             println!("Error: stack is empty, no top element to parse!");
         }
-        parser::process_tokens(&tokens[1..], stack, symbol_table);
+        parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
 
     /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
-    pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, process_next: bool, symbol_table: &mut HashMap<String, V>) {
+    pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, process_next: bool, var_and_fun: &mut HashMap<String, V>) {
         let mut new_string = String::new();            // {} and "" represented as a string
         let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
         let mut index = 0;
-        let initial_stack_len = stack.len();
+        let mut handle_next = true;
 
         // Function only called for these three starting symbols, no need for handling exceptions
         let (start_char, end_char): (String, String) = match starting_symbol.as_str() {
@@ -548,7 +609,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
-                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, symbol_table);
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, var_and_fun);
                             if let Some(value) = sub_stack.get(0) {         // Get the String, list or codeblock element from the sub stack
                                 new_string.push_str(&format!("{} ", value.to_string()));
                             }
@@ -582,7 +643,7 @@ pub mod interpreter {
                                 j += 1;
                             }
                             let mut sub_stack: Stack = Vec::new();
-                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, symbol_table);
+                            op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, var_and_fun);
                             if let Some(value) = sub_stack.get(0) {
                                 new_elements.push(value.clone());
                             }
@@ -609,10 +670,11 @@ pub mod interpreter {
             }
         } else {
         println!("Error: Missing closing quote");
-        stack.truncate(initial_stack_len); // Restore the stack to its initial length
+            parser::process_tokens(&tokens[tokens.len()..], stack, var_and_fun); // Dont process next tokens
+            handle_next = false;
         }
-        if process_next {
-            parser::process_tokens(&tokens[index + 1..], stack, symbol_table);
+        if process_next && handle_next {
+            parser::process_tokens(&tokens[index + 1..], stack, var_and_fun);
         } 
     }
 
@@ -636,103 +698,156 @@ pub mod parser {
     
     /// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
     /// execute the corresponding code depending on the tokens. 
-    pub fn process_input(line: &str, stack: &mut Stack, symbol_table: &mut HashMap<String, V>) {
+    pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) {
         let tokens = line.split_whitespace().collect::<Vec<&str>>(); // Get all symbols separated by space
         // Process the token inputs
-        process_tokens(&tokens, stack, symbol_table);
+        process_tokens(&tokens, stack, var_and_fun);
     }
     
     /// Processes the tokens sent by process_input and handles the different type of tokens
     /// Calls itself recursively with the next token in the list until there are not tokens left
-    pub fn process_tokens(tokens: &[&str], stack: &mut Stack, symbol_table: &mut HashMap<String, V>) {
+    pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) {
         if !tokens.is_empty() {
             match tokens[0] {
-                "*" => interpreter::op_binary(stack, OpBinary::Multiply,  &tokens, symbol_table), 
-                "+" => interpreter::op_binary(stack, OpBinary::Add,  &tokens, symbol_table), 
-                "-" => interpreter::op_binary(stack, OpBinary::Subtract,  &tokens, symbol_table),
-                "/" => interpreter::op_binary(stack, OpBinary::FDivide,  &tokens, symbol_table),
-                "div" => interpreter::op_binary(stack, OpBinary::IDivide, &tokens, symbol_table),
-                "<" => interpreter::op_binary(stack, OpBinary::RGreater, &tokens, symbol_table),
-                ">" => interpreter::op_binary(stack, OpBinary::LGreater, &tokens, symbol_table),
-                "==" => interpreter::op_binary(stack, OpBinary::Equality, &tokens,symbol_table),
-                "&&" => interpreter::op_binary(stack, OpBinary::And, &tokens, symbol_table),
-                "||" => interpreter::op_binary(stack, OpBinary::Or, &tokens,symbol_table),
+                "*" => interpreter::op_binary(stack, OpBinary::Multiply,  &tokens, var_and_fun), 
+                "+" => interpreter::op_binary(stack, OpBinary::Add,  &tokens, var_and_fun), 
+                "-" => interpreter::op_binary(stack, OpBinary::Subtract,  &tokens, var_and_fun),
+                "/" => interpreter::op_binary(stack, OpBinary::FDivide,  &tokens, var_and_fun),
+                "div" => interpreter::op_binary(stack, OpBinary::IDivide, &tokens, var_and_fun),
+                "<" => interpreter::op_binary(stack, OpBinary::RGreater, &tokens, var_and_fun),
+                ">" => interpreter::op_binary(stack, OpBinary::LGreater, &tokens, var_and_fun),
+                "==" => interpreter::op_binary(stack, OpBinary::Equality, &tokens,var_and_fun),
+                "&&" => interpreter::op_binary(stack, OpBinary::And, &tokens, var_and_fun),
+                "||" => interpreter::op_binary(stack, OpBinary::Or, &tokens,var_and_fun),
 
-                "not" => interpreter::op_not(stack, &tokens, symbol_table),
-                "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string(), true, symbol_table), 
-                "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string(), true, symbol_table), 
-                "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string(), true, symbol_table),
+                "not" => interpreter::op_not(stack, &tokens, var_and_fun),
+                "\"" => interpreter::op_enclosed(stack, &tokens, "\"".to_string(), true, var_and_fun), 
+                "[" => interpreter::op_enclosed(stack, &tokens, "[".to_string(), true, var_and_fun), 
+                "{" => interpreter::op_enclosed(stack, &tokens,"{".to_string(), true, var_and_fun),
 
-                "dup" => interpreter::op_dup(stack, &tokens, symbol_table),
-                "swap" => interpreter::op_swap(stack, &tokens, symbol_table),
+                "dup" => interpreter::op_dup(stack, &tokens, var_and_fun),
+                "swap" => interpreter::op_swap(stack, &tokens, var_and_fun),
 
-                "print" => interpreter::op_print(stack, &tokens, symbol_table),
-                "read" => interpreter::op_read(stack, &tokens, symbol_table),
+                "print" => interpreter::op_print(stack, &tokens, var_and_fun),
+                "read" => interpreter::op_read(stack, &tokens, var_and_fun),
                 
-                "parseInteger" => interpreter::op_parse_num(stack, false, &tokens, symbol_table),
-                "parseFloat" => interpreter::op_parse_num(stack, true, &tokens, symbol_table),
-                "words" => interpreter::op_words(stack, &tokens, symbol_table),
+                "parseInteger" => interpreter::op_parse_num(stack, false, &tokens, var_and_fun),
+                "parseFloat" => interpreter::op_parse_num(stack, true, &tokens, var_and_fun),
+                "words" => interpreter::op_words(stack, &tokens, var_and_fun),
 
-                "head" => interpreter::op_head(stack, &tokens, symbol_table),
-                "tail" => interpreter::op_tail(stack, &tokens, symbol_table),
-                "empty" => interpreter::op_empty(stack, &tokens, symbol_table),
-                "length" => interpreter::op_length(stack, &tokens, symbol_table),
-                "cons" => interpreter::op_cons(stack, &tokens, symbol_table),
-                "append" => interpreter::op_append(stack, &tokens, symbol_table),
-                "each" => infix_op(stack, &tokens, 0, symbol_table),
-                "map" => infix_op(stack, &tokens, 1, symbol_table),
-                "foldl" => infix_op(stack, &tokens, 2, symbol_table),
-                "if" => infix_op(stack, &tokens, 3, symbol_table),
-                "times" => infix_op(stack, tokens, 4, symbol_table),
+                "head" => interpreter::op_head(stack, &tokens, var_and_fun),
+                "tail" => interpreter::op_tail(stack, &tokens, var_and_fun),
+                "empty" => interpreter::op_empty(stack, &tokens, var_and_fun),
+                "length" => interpreter::op_length(stack, &tokens, var_and_fun),
+                "cons" => interpreter::op_cons(stack, &tokens, var_and_fun),
+                "append" => interpreter::op_append(stack, &tokens, var_and_fun),
+                "each" => infix_op(stack, &tokens, 0, var_and_fun),
+                "map" => infix_op(stack, &tokens, 1, var_and_fun),
+                "foldl" => infix_op(stack, &tokens, 2, var_and_fun),
+                "if" => infix_op(stack, &tokens, 3, var_and_fun),
+                "times" => infix_op(stack, tokens, 4, var_and_fun),
 
-                ":=" => interpreter::op_assign_variable (stack, &tokens, symbol_table),
-                "exec" => interpreter::op_exec(stack, &tokens, symbol_table),
-                "pop" => interpreter::op_pop(stack, &tokens, symbol_table),
+                ":=" => interpreter::op_assign_variable(stack, &tokens, var_and_fun),
+                "fun" => interpreter::op_assign_function(stack, &tokens, var_and_fun),
+                "exec" => interpreter::op_exec(stack, &tokens, var_and_fun),
+                "pop" => interpreter::op_pop(stack, &tokens, var_and_fun),
                 _ => {
-                     interpreter::op_num(stack, tokens[0]);
-                     process_tokens(&tokens[1..], stack, symbol_table);
+                    // Check if the token is already in the hashmap
+                    if var_and_fun.contains_key(tokens[0]) {
+                        // Retrieve the value of the variable and push it onto the stack
+                        let value = var_and_fun.get(tokens[0]).unwrap().clone();
+                        let value_clone = value.clone();    // Because we move value out of scope underneath
+                        stack.insert(0, value);
+                        if let V::VCodeBlock(_) = value_clone {
+                            // Call process_tokens with "exec" as the token to execute the codeblock that was 
+                            // Put onto the stack
+                            process_tokens(&["exec"], stack, var_and_fun);
+                        }
+                        process_tokens(&tokens[1..], stack, var_and_fun)
                     }
+                    else{
+                        interpreter::op_num(stack, tokens[0]);
+                        process_tokens(&tokens[1..], stack, var_and_fun);
+                    }
+                }
                 //_ => process_tokens(&tokens[1..], stack),
             };
         }
     }
     
-    fn infix_op (stack: &mut Stack, tokens: &[&str], operation_type: i32, symbol_table: &mut HashMap<String, V>){
+    /// NEED TO FIX THE NESTING LVELS HERE REALLY UGLY AS OF NOW, BUT WORKS
+    fn infix_op (stack: &mut Stack, tokens: &[&str], operation_type: i32, var_and_fun: &mut HashMap<String, V>){
         // Need to process codeblock first since syntax is [] each {}
         if let Some(next_token) = tokens.get(1) {
+
+            let top_element = tokens[1].clone();    // Need to clone because of borrow issues
+            let mut second_element = tokens[1].clone();
+            if tokens.len() >=2 {
+                second_element = tokens[1].clone();
+            }
             if next_token.starts_with("{") {
                 // Adds the codeblock to the stack
-                interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false, symbol_table);
+                interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false, var_and_fun);
                 // Finds the closing }
                 if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
                     match operation_type {
-                        0 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 0, symbol_table),
-                        1 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 1, symbol_table),
-                        2 => interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..], symbol_table),
+                        0 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 0, var_and_fun),
+                        1 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 1, var_and_fun),
+                        2 => interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..], var_and_fun),
                         3 => {
-                            interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false, symbol_table);
-                            if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
-                                interpreter::op_if(stack, 
-                                                &tokens[closing_brace_index + second_closing_brace_index + 3..], symbol_table);
-                            }
-                            else {
-                                println!("Error: If statements needs exactly 2 codeblocks after!");
+                            if let Some(next_token) = tokens.get(1) {
+                                if next_token.starts_with("{"){
+                                    interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false, var_and_fun);
+                                    if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
+                                        interpreter::op_if(stack, 
+                                                        &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
+                                    } else {
+                                        println!("Error: Missing closing bracket for the last codeblock following if ");
+                                    }
+                                } else if is_valid_element(second_element){
+                                    stack.insert(0, V::VString(top_element.clone().to_string()));
+                                    interpreter::op_if(stack, 
+                                        &tokens[closing_brace_index + 1 + 3..], var_and_fun);
+                                }
+                            }  else {
+                                println!("Error: Needs to be two elements after if!")
                             }
                         }
-                        4 => interpreter::op_times(stack, &tokens[closing_brace_index + 2..], symbol_table),
+                        4 => interpreter::op_times(stack, &tokens[closing_brace_index + 2..], var_and_fun),
                         _ => {} // Should never be called with anything other than 0,1,2,3
                     }
                 } else {
                     // Should i let it process next tokens here?
-                    println!("Error: Missing closing brace for the code block!");
+                    println!("Error: Missing closing brace for the first code block!");
+                }
+            } else if is_valid_element(top_element) {
+                stack.insert(0, V::VString(top_element.clone().to_string()));
+                match operation_type {
+                    0 => interpreter::op_map_or_each(stack, &tokens[1..], 0, var_and_fun),
+                    1 => interpreter::op_map_or_each(stack, &tokens[1..], 1, var_and_fun),
+                    2 => interpreter::op_foldl(stack, &tokens[1..], var_and_fun),
+                    3 => interpreter::op_if(stack, &tokens[1..], var_and_fun),
+                    4 => interpreter::op_times(stack, &tokens[1..], var_and_fun),
+                    _ => {} // Should never be called with anything other than 0,1,2,3
                 }
             } else {
                 // Should i let it process next tokens here? 
                 println!("Error: Next element is not a codeblock!");
-                process_tokens(&tokens[1..], stack, symbol_table);    // Processes the next token as usual
+                process_tokens(&tokens[1..], stack, var_and_fun);    // Processes the next token as usual
             }
         } else {
-            println!("Error: Needs to be a codeblock after each for it to work!");
+            println!("Error: Needs to be a token after ");
+        }
+    }
+    
+    /// Checks if a element is valid for use instead of a { } for operations that require { }
+    pub fn is_valid_element(element: &str) -> bool {
+        match element {
+            "head" | "tail" | "empty" | "length" | "cons" | "append" | "+" => true,
+            _ => {
+                // Check if the string can be parsed as an integer or a float
+                element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()
+            }
         }
     }
 
@@ -827,12 +942,12 @@ pub fn t(input: &str) -> String {
     // directory `tests` with `cargo test` will only look into lib.rs, so make your parse and
     // execution functions public and import them here.
     let mut stack = types::Stack::new();
-    let mut symbol_table: HashMap<String, V> = HashMap::new();
+    let mut var_and_fun: HashMap<String, V> = HashMap::new();
     // The following test function should:
     // 1. invoke parser (+lexer) with input string
     // 2. invoke interpreter with tokens from parser as input
     // 3. transform the result to a string (tip: implement Display traits)
-    process_input(input, &mut stack, &mut symbol_table);
+    process_input(input, &mut stack, &mut var_and_fun);
 
     let output: String = stack[0].to_string();
     output
