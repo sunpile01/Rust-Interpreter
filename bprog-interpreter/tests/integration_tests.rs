@@ -261,7 +261,7 @@ mod test_string_parsing {
 
     #[test]
     fn test_words() {
-        assert_eq!(t("\" adam bob charlie \" words"), "[\"adam\",\"bob\",\"charlie\"]");
+        assert_eq!(t("\" adam bob charlie \" words"), "[\"adam\", \"bob\", \"charlie\"]");
     }
 }
 
@@ -275,7 +275,7 @@ mod test_lists {
 
     #[test]
     fn test_mixed_list_creation() {
-        assert_eq!(t("[ 1 \" bob \" ]"), "[1,\"bob\"]");
+        assert_eq!(t("[ 1 \" bob \" ]"), "[1, \"bob\"]");
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod test_lists {
 
     #[test]
     fn test_list_tail() {
-        assert_eq!(t("[ 1 2 3 ] tail"), "[2,3]");
+        assert_eq!(t("[ 1 2 3 ] tail"), "[2, 3]");
     }
 
     #[test]
@@ -310,22 +310,22 @@ mod test_lists {
 
     #[test]
     fn test_list_cons_append() {
-        assert_eq!(t("1 [ 2 3 ] cons"), "[1,2,3]");
+        assert_eq!(t("1 [ 2 3 ] cons"), "[1, 2, 3]");
     }
 
     #[test]
     fn test_list_append() {
-        assert_eq!(t("[ 1 ] [ 2 3 ] append"), "[1,2,3]");
+        assert_eq!(t("[ 1 ] [ 2 3 ] append"), "[1, 2, 3]");
     }
 
     #[test]
     fn test_list_append_empty() {
-        assert_eq!(t("[ 1 2 ] [ ] append"), "[1,2]");
+        assert_eq!(t("[ 1 2 ] [ ] append"), "[1, 2]");
     }
 
     #[test]
     fn test_list_nested_cons() {
-        assert_eq!(t("[ 1 ] [ 2 3 ] cons"), "[[1],2,3]");
+        assert_eq!(t("[ 1 ] [ 2 3 ] cons"), "[[1], 2, 3]");
     }
 }
 
@@ -334,17 +334,17 @@ mod test_list_quotations {
 
     #[test]
     fn test_map_multiply() {
-        assert_eq!(t("[ 1 2 3 ] map { 10 * }"), "[10,20,30]");
+        assert_eq!(t("[ 1 2 3 ] map { 10 * }"), "[10, 20, 30]");
     }
 
     #[test]
     fn test_map_add() {
-        assert_eq!(t("[ 1 2 3 ] map { 1 + }"), "[2,3,4]");
+        assert_eq!(t("[ 1 2 3 ] map { 1 + }"), "[2, 3, 4]");
     }
 
     #[test]
     fn test_map_conditional() {
-        assert_eq!(t("[ 1 2 3 4 ] map { dup 2 > if { 10 * } { 2 * } }"), "[2,4,30,40]");
+        assert_eq!(t("[ 1 2 3 4 ] map { dup 2 > if { 10 * } { 2 * } }"), "[2, 4, 30, 40]");
     }
 
     #[test]
@@ -364,12 +364,12 @@ mod test_list_quotations {
 
     #[test]
     fn test_each_parse_integer() {
-        assert_eq!(t("[ \" 1 \" \" 2 \" \" 3 \" ] each { parseInteger } [ ] cons cons cons"), "[1,2,3]");
+        assert_eq!(t("[ \" 1 \" \" 2 \" \" 3 \" ] each { parseInteger } [ ] cons cons cons"), "[1, 2, 3]");
     }
 
     #[test]
     fn test_each_parse_integer_3_times() {
-        assert_eq!(t("[ \" 1 \" \" 2 \" \" 3 \" ] each parseInteger [ ] 3 times cons"), "[1,2,3]");
+        assert_eq!(t("[ \" 1 \" \" 2 \" \" 3 \" ] each parseInteger [ ] 3 times cons"), "[1, 2, 3]");
     }
 
     #[test]
@@ -402,12 +402,12 @@ mod test_assignments {
 
     #[test]
     fn test_variable_assignment_list() {
-        assert_eq!(t("[ 1 2 3 ] list swap := list"), "[1,2,3]");
+        assert_eq!(t("[ 1 2 3 ] list swap := list"), "[1, 2, 3]");
     }
 
     #[test]
     fn test_variable_update() {
-        assert_eq!(t("age 20 := [ 10 age ]"), "[10,20]");
+        assert_eq!(t("age 20 := [ 10 age ]"), "[10, 20]");
     }
 
 }
@@ -532,17 +532,17 @@ mod test_loop {
 
     #[test]
     fn test_loop_with_conditional() {
-        assert_eq!(t("1 loop { dup 4 > } { dup 1 + } [ ] 5 times { cons }"), "[1,2,3,4,5]");
+        assert_eq!(t("1 loop { dup 4 > } { dup 1 + } [ ] 5 times { cons }"), "[1, 2, 3, 4, 5]");
     }
 
     #[test]
     fn test_loop_condensed_with_conditional() {
-        assert_eq!(t("1 loop { dup 4 > } { dup 1 + } [ ] 5 times cons"), "[1,2,3,4,5]");
+        assert_eq!(t("1 loop { dup 4 > } { dup 1 + } [ ] 5 times cons"), "[1, 2, 3, 4, 5]");
     }
 
     #[test]
     fn test_loop_with_conditional_length() {
-        assert_eq!(t("[ 1 ] loop { dup length 9 > } { dup head 1 + swap cons }"), "[10,9,8,7,6,5,4,3,2,1]");
+        assert_eq!(t("[ 1 ] loop { dup length 9 > } { dup head 1 + swap cons }"), "[10, 9, 8, 7, 6, 5, 4, 3, 2, 1]");
     }
 }
 
@@ -579,7 +579,7 @@ mod test_functions {
         assert_eq!(t("odd { dup 2 div swap 2 / == if false true } fun \
                   toList { [ ] swap times cons } fun \
                   gen1toNum { max swap := 1 loop { dup max > } { dup 1 + } } fun \
-                  4 gen1toNum 5 toList map odd"), "[true,false,true,false,true]");
+                  4 gen1toNum 5 toList map odd"), "[true, false, true, false, true]");
     }
 
     #[test]

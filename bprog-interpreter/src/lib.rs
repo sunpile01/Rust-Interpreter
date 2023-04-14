@@ -1,6 +1,6 @@
 
 pub mod interpreter {
-    use super::parser;
+    use super::parser::{self, process_tokens};
 
     use super::types::{Stack, WValue as V, OpBinary};
 
@@ -308,9 +308,8 @@ pub mod interpreter {
         if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned(){ // Need to clone since we remove an element later
             stack.remove(0);
             
-            let without_braces = &code_block[1..code_block.len()-1];    // Remove { }
-            let tokens_code_block: Vec<&str> = without_braces.split_whitespace().collect(); 
-            parser::process_tokens(&tokens_code_block, stack);  // Process the codeblock
+            let code_block_tokens: Vec<&str> = parse_code_block_tokens(&code_block);
+            parser::process_tokens(&code_block_tokens, stack);  // Process the codeblock
         } else {
             println!("Error: Stack empty or top element not a codeblock");
         }
@@ -318,18 +317,16 @@ pub mod interpreter {
     }
 
     /// For each element in a list it executes a given code block
-    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: bool) {
+    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i32) {
         if stack.len() >= 2 {
-            if let Some(V::VCodeBlock(code_block)) = stack.get(0) {
+            if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned() {
                 // Clone the code block and split it into tokens without the {}
-                let code_block_clone = code_block.clone();
-                let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
-                let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+                let code_block_tokens: Vec<&str> = parse_code_block_tokens(&code_block);
     
                 if let V::VList(mut list) = stack[1].clone() {
                     stack.remove(0); // Remove the code block from the stack
     
-                    if !is_map {
+                    if is_map == 0 {
                         stack.remove(0); // Remove the original list from the stack
                     }
     
@@ -338,7 +335,7 @@ pub mod interpreter {
                         parser::process_tokens(&code_block_tokens, &mut dummy_stack); // codeblock executed for list element
     
                         if !dummy_stack.is_empty() {
-                            if !is_map {
+                            if is_map == 0 {
                                 stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
                             } else {
                                 list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
@@ -346,7 +343,7 @@ pub mod interpreter {
                         }
                     }
     
-                    if is_map {
+                    if is_map == 1 {
                         stack[0] = V::VList(list); // Update the original list in the stack
                     }
                 } else {
@@ -368,9 +365,7 @@ pub mod interpreter {
             if let (Some(V::VList(list)), Some(V::VInt(init_acc)), Some(V::VCodeBlock(code_block))) = (stack.get(2), stack.get(1), stack.get(0)){
                 let mut acc = *init_acc;
                 // Clone the code block and split it into tokens without the {}
-                let code_block_clone = code_block.clone();
-                let code_block_no_braces = &code_block_clone[1..code_block_clone.len() - 1];
-                let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+                let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
                 for elem in list {
                     let mut dummy_stack: Vec<V> = vec![elem.clone(), V::VInt(acc)]; // Insert element and acc into dummy stack
                     parser::process_tokens(&code_block_tokens, &mut dummy_stack);  // process code block on dummy stack
@@ -397,7 +392,40 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on stack to perform foldl");
         }
+        parser::process_tokens(tokens, stack);
     }
+
+
+    /// syntax: Condition if Then Else. Gets the condition and then else block from the stack.
+    /// If condition is true executes the Then block, otherwise it executes the Else block
+    pub fn op_if (stack: &mut Stack, tokens: &[&str]){
+        if stack.len() >= 3 {
+            if let (Some(V::VBool(condition)), Some(V::VCodeBlock(then_block)), Some(V::VCodeBlock(else_block))) 
+                                        = (stack.get(2).cloned(), stack.get(1).cloned(), stack.get(0).cloned()){                         
+                stack.remove(0);
+                stack.remove(0);
+                stack.remove(0);
+                if condition == true{
+                    println! ("before process_tokens: {:?}", then_block);
+                    let code_block_tokens = parse_code_block_tokens(&then_block);
+                    println! ("{:?}", code_block_tokens);
+                    parser::process_tokens(&code_block_tokens, stack);
+                } else {
+                    let code_block_tokens = parse_code_block_tokens(&else_block);
+                    parser::process_tokens(&code_block_tokens, stack);
+                }
+            } else {
+                println!("Error: Wrong types provided for if statement!");
+                stack.remove(0);
+                stack.remove(0);
+                stack.remove(0);
+            }
+        } else {
+            println!("Error: Not enough elements on the stack to perform if")
+        }
+        process_tokens(tokens, stack);
+    }
+
 
     /// Parse a string from stack to a integer or float and puts it back onto the stack
     pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str]) {
@@ -551,6 +579,14 @@ pub mod interpreter {
         } 
     }
 
+    
+    /// Helper function to parse the codeblock into a vector of tokens
+    fn parse_code_block_tokens(code_block: &str) -> Vec<&str> {
+        let code_block_no_braces = &code_block[1..code_block.len() - 1];
+        let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
+        code_block_tokens
+    }
+
     /* 
     Tried to make a helper function here to remove the duplicated code in op_enclosed, but could not make it work
     Needs to be fixed later.
@@ -628,11 +664,11 @@ pub mod parser {
                 "length" => interpreter::op_length(stack, &tokens),
                 "cons" => interpreter::op_cons(stack, &tokens),
                 "append" => interpreter::op_append(stack, &tokens),
-                "each" => map_or_each(stack, &tokens, false, false),
-                "map" => map_or_each(stack, &tokens, true, false),
-                "foldl" => map_or_each(stack, &tokens, false, true),
-
+                "each" => map_or_each(stack, &tokens, 0),
+                "map" => map_or_each(stack, &tokens, 1),
+                "foldl" => map_or_each(stack, &tokens, 2),
                 
+                "if" => map_or_each(stack, &tokens, 3),
                 "exec" => interpreter::op_exec(stack, &tokens),
                 "pop" => interpreter::op_pop(stack, &tokens),
                 _ => {
@@ -644,7 +680,7 @@ pub mod parser {
         }
     }
     
-    fn map_or_each (stack: &mut Stack, tokens: &[&str], do_map: bool, do_fold: bool){
+    fn map_or_each (stack: &mut Stack, tokens: &[&str], operation_type: i32){
         // Need to process codeblock first since syntax is [] each {}
         if let Some(next_token) = tokens.get(1) {
             if next_token.starts_with("{") {
@@ -652,14 +688,21 @@ pub mod parser {
                 interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false);
                 // Finds the closing }
                 if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
-                    if do_map {
-                        interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
-                    }
-                    else if !do_map && !do_fold {
-                        interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], do_map);
-                    }
-                    else {
-                        interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..])
+                    match operation_type {
+                        0 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 0),
+                        1 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 1),
+                        2 => interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..]),
+                        3 => {
+                            interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false);
+                            if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
+                                interpreter::op_if(stack, 
+                                                &tokens[closing_brace_index + second_closing_brace_index + 3..]);
+                            }
+                            else {
+                                println!("Error: If statements needs exactly 2 codeblocks after!");
+                            }
+                        }
+                        _ => {} // Should never be called with anything other than 0,1,2,3
                     }
                 } else {
                     // Should i let it process next tokens here?
