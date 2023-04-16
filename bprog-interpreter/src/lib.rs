@@ -351,7 +351,7 @@ pub mod interpreter {
                             let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
                             parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
                         }
-                        Some(operation) if  parser::is_valid_element(operation.to_string().as_str()) => { 
+                        Some(operation) if  parser::is_valid_element_each_map(operation.to_string().as_str()) => { 
                             process_next = true;
                             parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun); // Valid symbol executed for list element
                         }
@@ -464,15 +464,15 @@ pub mod interpreter {
     /// syntax: Condition if Then Else. Gets the condition and then else block from the stack.
     /// If condition is true executes the Then block, otherwise it executes the Else block
     pub fn op_if (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
-        let mut process_next = false;
         if stack.len() >= 3 {
+
             // Cant specify the types of the then_block and else_block since it needs to be matched later
             if let (Some(V::VBool(condition)), Some(then_block), Some(else_block))  = 
                                      (stack.get(2).cloned(), stack.get(1).cloned(), stack.get(0).cloned()) {                         
                 stack.remove(0);
                 stack.remove(0);
                 stack.remove(0);
-                
+
                 let block_to_use = if condition { then_block } else { else_block };
                 // Check if it is a valid single operation or a codeblock
                 match block_to_use {
@@ -481,7 +481,6 @@ pub mod interpreter {
                         parser::process_tokens(&code_block_tokens, stack, var_and_fun);
                     }
                     operation if parser::is_valid_element(operation.to_string().as_str()) => {
-                        process_next = true;
                         parser::process_tokens(&[operation.to_string().as_str()], stack, var_and_fun);
                     }
                     _ => {
@@ -497,12 +496,9 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform if")
         }
-        if !process_next{
-            parser::process_tokens(&tokens, stack, var_and_fun);
-        }
-        else {
-            parser::process_tokens(&tokens[1..], stack, var_and_fun)
-        }
+        println!("tokens: {:?}", tokens);
+        parser::process_tokens(&tokens, stack, var_and_fun);
+        
     }
 
     /// Execute a code block x number of times
@@ -826,23 +822,22 @@ pub mod parser {
         // Need to process codeblock first since syntax is [] each {}
         if let Some(next_token) = tokens.get(1) {
 
-            let top_element = tokens[1].clone();    // Need to clone because of borrow issues
-            let mut second_element = tokens[1].clone();
-            if tokens.len() >=2 {
-                second_element = tokens[1].clone();
-            }
             if next_token.starts_with("{") {
                 // Adds the codeblock to the stack
                 interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false, var_and_fun);
-                // Finds the closing }
+                // Finds the index for the closing } in the tokens array
                 if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
+                    // Calls the correct function depending on what operation is supposed to be exectued
+                    // Check function above for reference
                     match operation_type {
                         0 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 0, var_and_fun),
                         1 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 1, var_and_fun),
                         2 => interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..], var_and_fun),
                         3 => {
-                            if let Some(next_token) = tokens.get(1) {
-                                if next_token.starts_with("{"){
+                            // Need to take the second codeblock into consideration aswell for if statement
+                            if let Some(second_token) = tokens.get(closing_brace_index + 2) {
+                                //Checks
+                                if second_token.starts_with("{"){
                                     interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false, var_and_fun);
                                     if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
                                         interpreter::op_if(stack, 
@@ -850,10 +845,12 @@ pub mod parser {
                                     } else {
                                         println!("Error: Missing closing bracket for the last codeblock following if ");
                                     }
-                                } else if is_valid_element(second_element){
-                                    stack.insert(0, V::VString(top_element.clone().to_string()));
+                                } else if is_valid_element(second_token){
+                                    stack.insert(0, V::VString(second_token.clone().to_string()));
                                     interpreter::op_if(stack, 
-                                        &tokens[closing_brace_index + 1 + 3..], var_and_fun);
+                                        &tokens[closing_brace_index + 3..], var_and_fun);
+                                } else {
+                                    println!("Error: Second element after if is not a codeblock or valid operation");
                                 }
                             }  else {
                                 println!("Error: Needs to be two elements after if!")
@@ -866,19 +863,41 @@ pub mod parser {
                     // Should i let it process next tokens here?
                     println!("Error: Missing closing brace for the first code block!");
                 }
-            } else if is_valid_element(top_element) {
-                stack.insert(0, V::VString(top_element.clone().to_string()));
+            } else if is_valid_element(next_token) {
+                stack.insert(0, V::VString(next_token.clone().to_string()));
                 match operation_type {
                     0 => interpreter::op_map_or_each(stack, &tokens[1..], 0, var_and_fun),
                     1 => interpreter::op_map_or_each(stack, &tokens[1..], 1, var_and_fun),
                     2 => interpreter::op_foldl(stack, &tokens[1..], var_and_fun),
-                    3 => interpreter::op_if(stack, &tokens[1..], var_and_fun),
+                    3 => {
+                        if let Some(second_token) = tokens.get(2) {
+                            if second_token.starts_with("{"){
+                                // Adds the codeblock to the stack
+                                println!("tokens first time: {:?}", tokens);
+                                interpreter::op_enclosed(stack, &tokens[2..], "{".to_string(), false, var_and_fun);
+                                // Finds the index for the closing } in the tokens array
+                                if let Some (second_closing_brace_index) = tokens[2..].iter().position(|&x| x == "}"){
+                                    interpreter::op_if(stack, 
+                                                    &tokens[second_closing_brace_index + 3..], var_and_fun);
+                                } else {
+                                    println!("Error: Missing closing bracket for the last codeblock following if ");
+                                }
+                            } else if is_valid_element(second_token) {
+                                stack.insert(0, V::VString(second_token.clone().to_string()));
+                                    interpreter::op_if(stack, &tokens[3..], var_and_fun);
+                            }
+                            else {
+                                println!("Error: Second element not vlalid for if statement!");
+                            }
+                        }
+                    }
                     4 => interpreter::op_times(stack, &tokens[1..], var_and_fun),
                     _ => {} // Should never be called with anything other than 0,1,2,3
                 }
             } else {
+                println!("does not enter here");
                 // Should i let it process next tokens here? 
-                println!("Error: Next element is not a codeblock!");
+                println!("Error: Next element is not a codeblock or valid operation!");
                 process_tokens(&tokens[1..], stack, var_and_fun);    // Processes the next token as usual
             }
         } else {
@@ -892,6 +911,18 @@ pub mod parser {
             "head" | "tail" | "empty" | "length" | "cons" | "append" | "+" | "div" | "dup" |
             "swap" | "pop" | "parseInteger" | "print" | "read" | "parseFloat" | "words" | "-" | "*" |
             "/" | "<" | ">" | "==" => true,
+            _ => {
+                // Check if the string can be parsed as an integer or a float
+                element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()
+            }
+        }
+    }
+    // Each and map is on a single element of the list only so some single operations can not be done
+    // Such as binary operations. 
+    pub fn is_valid_element_each_map(element: &str) -> bool {
+        match element {
+            "head" | "tail" | "empty" | "length" | "dup" | "pop" | "parseInteger" | "print" | "read" | 
+            "parseFloat" | "words" => true,
             _ => {
                 // Check if the string can be parsed as an integer or a float
                 element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()
