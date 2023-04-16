@@ -323,8 +323,8 @@ pub mod interpreter {
     pub fn op_exec (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) {
         if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned(){ // Need to clone since we remove an element later
             stack.remove(0);
-            
             let code_block_tokens: Vec<&str> = parse_code_block_tokens(&code_block);
+            println!("{:?}", code_block_tokens);
             parser::process_tokens(&code_block_tokens, stack, var_and_fun);  // Process the codeblock
         } else {
             println!("Error: Stack empty or top element not a codeblock");
@@ -334,44 +334,54 @@ pub mod interpreter {
 
     /// For each element in a list it executes a given code block
     pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i32, var_and_fun: &mut HashMap<String, V>) {
+        let mut process_next = false;
         if stack.len() >= 2 {
-            if let Some(V::VCodeBlock(code_block)) = stack.get(0).cloned() {
-                // Clone the code block and split it into tokens without the {}
-                let code_block_tokens: Vec<&str> = parse_code_block_tokens(&code_block);
-    
-                if let V::VList(mut list) = stack[1].clone() {
-                    stack.remove(0); // Remove the code block from the stack
-    
-                    if is_map == 0 {
-                        stack.remove(0); // Remove the original list from the stack
-                    }
-    
-                    for i in 0..list.len() {
-                        let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
-                        parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
-    
-                        if !dummy_stack.is_empty() {
-                            if is_map == 0 {
-                                stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
-                            } else {
-                                list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
-                            }
+            
+            let valid_or_cblock = &stack.get(0).cloned();
+
+            if let V::VList(mut list) = stack[1].clone() {
+                stack.remove(0); // Remove the code block from the stack
+                if is_map == 0 {
+                    stack.remove(0); // Remove the original list from the stack
+                }
+                for i in 0..list.len() {
+                    let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
+                    match valid_or_cblock {
+                        Some(V::VCodeBlock(code_block)) => {
+                            let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
+                            parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
+                        }
+                        Some(operation) if  parser::is_valid_element(operation.to_string().as_str()) => { 
+                            process_next = true;
+                            parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun); // Valid symbol executed for list element
+                        }
+                        _ => {
+                            println!("Element after map/each is not a codeblock or valid operation!");
                         }
                     }
-    
-                    if is_map == 1 {
-                        stack[0] = V::VList(list); // Update the original list in the stack
+                    if !dummy_stack.is_empty() {
+                        if is_map == 0 {
+                            stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
+                        } else {
+                            list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
+                        }
                     }
-                } else {
-                    println!("Error: The first element on the stack is not a list!");
+                }
+                if is_map == 1 {
+                    stack[0] = V::VList(list); // Update the original list in the stack
                 }
             } else {
-                println!("Error: The second element on the stack is not a codeblock!");
+                println!("Error: The first element on the stack is not a list!");
             }
         } else {
             println!("Error: Need at least two elements on the stack to perform operation");
         }
-        parser::process_tokens(&tokens, stack, var_and_fun);
+        if !process_next{
+            parser::process_tokens(&tokens, stack, var_and_fun);
+        }
+        else {
+            parser::process_tokens(&tokens[1..], stack, var_and_fun)
+        }
     }
 
     /// GOT REALLY UGLY WHEN ADDING THE OPTION FOR SINGLE OPERATIONS INSTEAD OF CODEBLOCK
@@ -405,6 +415,7 @@ pub mod interpreter {
                             }
                         }
                     }
+                    // Same as above but just uses the single valid operation for example +, dont need to parse codeblock
                     Some(operation) if parser::is_valid_element(operation.to_string().as_str()) => {
                         process_next = true;
                         for elem in list {
@@ -439,6 +450,8 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on stack to perform foldl");
         }
+        // If it was a codeblock, the index for the next token is already sent by op_infix,
+        // so we dont have to send the index  for the next token
         if !process_next{
             parser::process_tokens(&tokens, stack, var_and_fun);
         }
@@ -451,20 +464,29 @@ pub mod interpreter {
     /// syntax: Condition if Then Else. Gets the condition and then else block from the stack.
     /// If condition is true executes the Then block, otherwise it executes the Else block
     pub fn op_if (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        let mut process_next = false;
         if stack.len() >= 3 {
-            if let (Some(V::VBool(condition)), Some(V::VCodeBlock(then_block)), Some(V::VCodeBlock(else_block))) 
-                                        = (stack.get(2).cloned(), stack.get(1).cloned(), stack.get(0).cloned()){                         
+            // Cant specify the types of the then_block and else_block since it needs to be matched later
+            if let (Some(V::VBool(condition)), Some(then_block), Some(else_block))  = 
+                                     (stack.get(2).cloned(), stack.get(1).cloned(), stack.get(0).cloned()) {                         
                 stack.remove(0);
                 stack.remove(0);
                 stack.remove(0);
-                if condition == true{
-                    println! ("before process_tokens: {:?}", then_block);
-                    let code_block_tokens = parse_code_block_tokens(&then_block);
-                    println! ("{:?}", code_block_tokens);
-                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
-                } else {
-                    let code_block_tokens = parse_code_block_tokens(&else_block);
-                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
+                
+                let block_to_use = if condition { then_block } else { else_block };
+                // Check if it is a valid single operation or a codeblock
+                match block_to_use {
+                    V::VCodeBlock(code_block) => {
+                        let code_block_tokens = parse_code_block_tokens(&code_block);   // Parse the codeblock
+                        parser::process_tokens(&code_block_tokens, stack, var_and_fun);
+                    }
+                    operation if parser::is_valid_element(operation.to_string().as_str()) => {
+                        process_next = true;
+                        parser::process_tokens(&[operation.to_string().as_str()], stack, var_and_fun);
+                    }
+                    _ => {
+                        println!("Error: Then and Else inputs must be a code block or a valid operation");
+                    }
                 }
             } else {
                 println!("Error: Wrong types provided for if statement!");
@@ -475,26 +497,50 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements on the stack to perform if")
         }
-        parser::process_tokens(&tokens, stack, var_and_fun);
+        if !process_next{
+            parser::process_tokens(&tokens, stack, var_and_fun);
+        }
+        else {
+            parser::process_tokens(&tokens[1..], stack, var_and_fun)
+        }
     }
 
     /// Execute a code block x number of times
     pub fn op_times (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        let mut process_next = false;
         if stack.len() >= 2 {
-            if let (Some(V::VInt(num_times)), Some(V::VCodeBlock(code_block))) = (stack.get(1).cloned(), stack.get(0).cloned()) {
+            if let (Some(V::VInt(num_times)), Some(code_block)) = (stack.get(1).cloned(), stack.get(0).cloned()) {
                 stack.remove(0);
                 stack.remove(0);
-                let code_block_tokens = parse_code_block_tokens(&code_block);
-                for _ in 0..num_times {
-                    parser::process_tokens(&code_block_tokens, stack, var_and_fun);
-                }
+                match code_block {
+                    V::VCodeBlock(code_block) => {
+                        let code_block_tokens = parse_code_block_tokens(&code_block);
+                        for _ in 0..num_times {
+                            parser::process_tokens(&code_block_tokens, stack, var_and_fun);
+                        }
+                    }
+                    operation if parser::is_valid_element(operation.to_string().as_str()) => {
+                        process_next = true;
+                        for _ in 0..num_times {
+                            parser::process_tokens(&[operation.to_string().as_str()], stack, var_and_fun);
+                        }
+                    }
+                    _ => {
+                        println!("Error: The input after 'times' needs to be a codeblock or a valid operation!");
+                    }
+                }      
             } else {
-                println!("Error: Not correct types for the times operation! (Int, codeblock)");
+                println!("Error: Not correct types for the times operation! (Int, codeblock/valid operation)");
             }
         } else {
             println!("Error: Not enough elements for times operation!");
         }
-        parser::process_tokens(&tokens, stack, var_and_fun);
+        if !process_next{
+            parser::process_tokens(&tokens, stack, var_and_fun);
+        }
+        else {
+            parser::process_tokens(&tokens[1..], stack, var_and_fun)
+        }
     }
     
     pub fn op_assign_variable (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
@@ -665,7 +711,7 @@ pub mod interpreter {
             match end_char.as_str() {
                 "\"" => stack.insert(0, V::VString(format!("{}{}{}", start_char, new_string, end_char))),
                 "]"  => stack.insert(0, V::VList(new_elements)),
-                "}"  => stack.insert(0, V::VCodeBlock(format!("{}{}{}", start_char, new_string, end_char))),
+                "}"  => stack.insert(0, V::VCodeBlock(format!("{} {} {}", start_char, new_string, end_char))),
                 _ => panic!("Invalid starting symbol"), // Just to satisfy exhaustive enforcement
             }
         } else {
@@ -843,7 +889,9 @@ pub mod parser {
     /// Checks if a element is valid for use instead of a { } for operations that require { }
     pub fn is_valid_element(element: &str) -> bool {
         match element {
-            "head" | "tail" | "empty" | "length" | "cons" | "append" | "+" => true,
+            "head" | "tail" | "empty" | "length" | "cons" | "append" | "+" | "div" | "dup" |
+            "swap" | "pop" | "parseInteger" | "print" | "read" | "parseFloat" | "words" | "-" | "*" |
+            "/" | "<" | ">" | "==" => true,
             _ => {
                 // Check if the string can be parsed as an integer or a float
                 element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()

@@ -63,7 +63,7 @@ mod test_literals {
 
     #[test]
     fn test_literal_list_of_blocks() {
-        assert_eq!(t("[ { + } { 10 + } { 20 10 + } ]"), "[{+}, {10 +}, {20 10 +}]")
+        assert_eq!(t("[ { + } { 10 + } { 20 10 + } ]"), "[{ + }, { 10 + }, { 20 10 + }]")
     }
 }
 
