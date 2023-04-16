@@ -501,6 +501,39 @@ pub mod interpreter {
         
     }
 
+
+    pub fn op_loop(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
+        if stack.len() >= 2 {
+            if let (Some(V::VCodeBlock(break_cond)), Some (V::VCodeBlock(code_block))) = (stack.get(1).cloned(), stack.get(0).cloned()){
+                stack.remove(0);
+                stack.remove(0);
+
+                loop {
+                    // Parse the break_cond into tokens and create a dumy stack
+                    let break_cond_tokens = parse_code_block_tokens(&break_cond);
+                    let mut break_stack = Stack::new();
+                    break_stack.push(stack[0].clone()); // Push the current value from the main stack onto the break_stack
+                    process_tokens(&break_cond_tokens, &mut break_stack, var_and_fun);
+
+                    // Check if the break condition is true
+                    if let Some(V::VBool(true)) = break_stack.get(0) {
+                        break;
+                    }
+        
+                    // Parse and execute the codeblock on the main stack
+                    let code_block_tokens = parse_code_block_tokens(&code_block);
+                    process_tokens(&code_block_tokens, stack, var_and_fun);
+                }
+
+            } else {
+                println!("Error: Both types after loop must be codeblocks!");
+            }
+        } else {
+            println!("Error: Not enough codeblocks provided to perform a loop!");
+        }
+        process_tokens(&tokens, stack, var_and_fun);
+    }
+
     /// Execute a code block x number of times
     pub fn op_times (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
         let mut process_next = false;
@@ -787,7 +820,8 @@ pub mod parser {
                 "map" => infix_op(stack, &tokens, 1, var_and_fun),
                 "foldl" => infix_op(stack, &tokens, 2, var_and_fun),
                 "if" => infix_op(stack, &tokens, 3, var_and_fun),
-                "times" => infix_op(stack, tokens, 4, var_and_fun),
+                "times" => infix_op(stack, &tokens, 4, var_and_fun),
+                "loop" => infix_op(stack, &tokens, 5, var_and_fun),
 
                 ":=" => interpreter::op_assign_variable(stack, &tokens, var_and_fun),
                 "fun" => interpreter::op_assign_function(stack, &tokens, var_and_fun),
@@ -833,15 +867,20 @@ pub mod parser {
                         0 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 0, var_and_fun),
                         1 => interpreter::op_map_or_each(stack, &tokens[closing_brace_index + 2..], 1, var_and_fun),
                         2 => interpreter::op_foldl(stack, &tokens[closing_brace_index + 2..], var_and_fun),
-                        3 => {
+                        3 | 5=> {
                             // Need to take the second codeblock into consideration aswell for if statement
                             if let Some(second_token) = tokens.get(closing_brace_index + 2) {
                                 //Checks
                                 if second_token.starts_with("{"){
                                     interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false, var_and_fun);
                                     if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
-                                        interpreter::op_if(stack, 
-                                                        &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
+                                        if operation_type == 3 {
+                                            interpreter::op_if(stack, 
+                                                &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
+                                        } else {
+                                            interpreter::op_loop(stack, 
+                                                &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
+                                        }
                                     } else {
                                         println!("Error: Missing closing bracket for the last codeblock following if ");
                                     }

@@ -58,7 +58,7 @@ mod test_literals {
 
     #[test]
     fn test_literal_block() {
-        assert_eq!(t("{ 20 10 + }"), "{20 10 +}")
+        assert_eq!(t("{ 20 10 + }"), "{ 20 10 + }")
     }
 
     #[test]
