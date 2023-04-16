@@ -29,7 +29,7 @@ pub mod interpreter {
 
                 // TODO NOT ALLOW DIVISION BY 0
                 (V::VInt(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b)),
-                (V::VFloat(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i32 / b as i32)),
+                (V::VFloat(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i64 / b as i64)),
                 (V::VFloat(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a / b)),
                 (V::VInt(a), V::VInt(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a as f32 / b as f32)),                
 
@@ -58,8 +58,8 @@ pub mod interpreter {
                 (V::VInt(a), V::VFloat(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a as f32 * b)),
                 (V::VFloat(a), V::VInt(b), OpBinary::Multiply) => stack.insert(0, V::VFloat(a * b as f32)),
 
-                (V::VInt(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b as i32)),
-                (V::VFloat(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i32 / b)),
+                (V::VInt(a), V::VFloat(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a / b as i64)),
+                (V::VFloat(a), V::VInt(b), OpBinary::IDivide) => stack.insert(0, V::VInt(a as i64 / b)),
 
                 (V::VInt(a), V::VFloat(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a as f32 / b )),
                 (V::VFloat(a), V::VInt(b), OpBinary::FDivide) => stack.insert(0, V::VFloat(a  / b as f32)),
@@ -206,7 +206,7 @@ pub mod interpreter {
         parser::process_tokens(&tokens[1..], stack, var_and_fun);
     }
 
-    /*VInt (i32),
+    /*VInt (i64),
         VFloat (f32),
         VBool (bool),
         VString (String),
@@ -263,18 +263,18 @@ pub mod interpreter {
             match top_element {
                 V::VList(list) => {
                     stack.remove(0);
-                    stack.insert(0, V::VInt(list.len() as i32))
+                    stack.insert(0, V::VInt(list.len() as i64))
                 }
                 V::VCodeBlock(c) => {
                     // Need to get the tokens from the codeblock since it is a string
                     stack.remove(0);
                     let code_block_no_braces =&c[1..c.len() - 1];
                     let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
-                    stack.insert(0, V::VInt(code_block_tokens.len() as i32))
+                    stack.insert(0, V::VInt(code_block_tokens.len() as i64))
                 }
                 V::VString(s) =>{ 
                     stack.remove(0);
-                    stack.insert(0, V::VInt(s.len() as i32 - 2))  // -2 for space before and after "
+                    stack.insert(0, V::VInt(s.len() as i64 - 2))  // -2 for space before and after "
                 } 
                 _ => println!("Error: Type not allowed for operation length"),
             }
@@ -333,7 +333,7 @@ pub mod interpreter {
     }
 
     /// For each element in a list it executes a given code block
-    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i32, var_and_fun: &mut HashMap<String, V>) {
+    pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i64, var_and_fun: &mut HashMap<String, V>) {
         let mut process_next = false;
         if stack.len() >= 2 {
             
@@ -344,12 +344,15 @@ pub mod interpreter {
                 if is_map == 0 {
                     stack.remove(0); // Remove the original list from the stack
                 }
+                // Goes through the elements in the list 
                 for i in 0..list.len() {
                     let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
+                    println!("Dummy Stack before insert: {:?}", stack);
                     match valid_or_cblock {
                         Some(V::VCodeBlock(code_block)) => {
                             let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
                             parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
+                            println!("Dummy Stack after insert: {:?}", stack);
                         }
                         Some(operation) if  parser::is_valid_element_each_map(operation.to_string().as_str()) => { 
                             process_next = true;
@@ -363,7 +366,9 @@ pub mod interpreter {
                         if is_map == 0 {
                             stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
                         } else {
+                            println!("Stack before insert: {:?}", stack);
                             list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
+                            println!("Stack after insert: {:?}", stack);
                         }
                     }
                 }
@@ -376,12 +381,7 @@ pub mod interpreter {
         } else {
             println!("Error: Need at least two elements on the stack to perform operation");
         }
-        if !process_next{
-            parser::process_tokens(&tokens, stack, var_and_fun);
-        }
-        else {
-            parser::process_tokens(&tokens[1..], stack, var_and_fun)
-        }
+        parser::process_tokens(&tokens[if process_next { 1 } else { 0 }..], stack, var_and_fun);
     }
 
     /// GOT REALLY UGLY WHEN ADDING THE OPTION FOR SINGLE OPERATIONS INSTEAD OF CODEBLOCK
@@ -452,12 +452,7 @@ pub mod interpreter {
         }
         // If it was a codeblock, the index for the next token is already sent by op_infix,
         // so we dont have to send the index  for the next token
-        if !process_next{
-            parser::process_tokens(&tokens, stack, var_and_fun);
-        }
-        else {
-            parser::process_tokens(&tokens[1..], stack, var_and_fun)
-        }
+        parser::process_tokens(&tokens[if process_next { 1 } else { 0 }..], stack, var_and_fun);
     }
 
 
@@ -564,12 +559,7 @@ pub mod interpreter {
         } else {
             println!("Error: Not enough elements for times operation!");
         }
-        if !process_next{
-            parser::process_tokens(&tokens, stack, var_and_fun);
-        }
-        else {
-            parser::process_tokens(&tokens[1..], stack, var_and_fun)
-        }
+        parser::process_tokens(&tokens[if process_next { 1 } else { 0 }..], stack, var_and_fun);
     }
     
     pub fn op_assign_variable (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>){
@@ -613,7 +603,7 @@ pub mod interpreter {
                             println!("Error: Unable to parse string to float!");
                         }
                     } else {
-                        if let Ok(i) = s_no_qoutes.parse::<i32>() {
+                        if let Ok(i) = s_no_qoutes.parse::<i64>() {
                             *top_element = V::VInt(i); // Replace the VString with the parsed VInt
                         } else {
                             println!("Error: Unable to parse string to integer!");
@@ -852,7 +842,7 @@ pub mod parser {
     }
     
     /// NEED TO FIX THE NESTING LVELS HERE REALLY UGLY AS OF NOW, BUT WORKS
-    fn infix_op (stack: &mut Stack, tokens: &[&str], operation_type: i32, var_and_fun: &mut HashMap<String, V>){
+    fn infix_op (stack: &mut Stack, tokens: &[&str], operation_type: i64, var_and_fun: &mut HashMap<String, V>){
         // Need to process codeblock first since syntax is [] each {}
         if let Some(next_token) = tokens.get(1) {
 
@@ -860,7 +850,7 @@ pub mod parser {
                 // Adds the codeblock to the stack
                 interpreter::op_enclosed(stack, &tokens[1..], "{".to_string(), false, var_and_fun);
                 // Finds the index for the closing } in the tokens array
-                if let Some(closing_brace_index) = tokens[1..].iter().position(|&x| x == "}") {
+                if let Some(closing_brace_index) = find_matching_brace(&tokens[1..]) {
                     // Calls the correct function depending on what operation is supposed to be exectued
                     // Check function above for reference
                     match operation_type {
@@ -873,7 +863,7 @@ pub mod parser {
                                 //Checks
                                 if second_token.starts_with("{"){
                                     interpreter::op_enclosed(stack, &tokens[closing_brace_index + 2..], "{".to_string(), false, var_and_fun);
-                                    if let Some (second_closing_brace_index) = tokens[closing_brace_index + 2..].iter().position(|&x| x == "}"){
+                                    if let Some (second_closing_brace_index) = find_matching_brace(&tokens[closing_brace_index +2..]){
                                         if operation_type == 3 {
                                             interpreter::op_if(stack, 
                                                 &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
@@ -915,7 +905,7 @@ pub mod parser {
                                 println!("tokens first time: {:?}", tokens);
                                 interpreter::op_enclosed(stack, &tokens[2..], "{".to_string(), false, var_and_fun);
                                 // Finds the index for the closing } in the tokens array
-                                if let Some (second_closing_brace_index) = tokens[2..].iter().position(|&x| x == "}"){
+                                if let Some (second_closing_brace_index) = find_matching_brace(&tokens[2..]){
                                     interpreter::op_if(stack, 
                                                     &tokens[second_closing_brace_index + 3..], var_and_fun);
                                 } else {
@@ -943,6 +933,25 @@ pub mod parser {
             println!("Error: Needs to be a token after ");
         }
     }
+
+    // Helper function to find the mathing end bracket for the bracket index it is sent as a parameter
+    fn find_matching_brace(tokens: &[&str]) -> Option<usize> {
+        let mut open_braces = 0;
+        // Go throught the remaining tokens
+        for (i, token) in tokens.iter().enumerate() {
+            if *token == "{" {
+                open_braces += 1;       // Now needs to find and extra closing bracket
+            } else if *token == "}" {
+                if open_braces == 1 {   
+                    return Some(i);    // Found the corresponding closing bracket, return from the function
+                } else {
+                    open_braces -= 1;
+                }
+            }
+        }
+        // Did not find a corresponding closing bracket
+        None   // Always called with "let Some (..) = find_matching_brace()" so the Some will handle the error
+    }
     
     /// Checks if a element is valid for use instead of a { } for operations that require { }
     pub fn is_valid_element(element: &str) -> bool {
@@ -952,7 +961,7 @@ pub mod parser {
             "/" | "<" | ">" | "==" => true,
             _ => {
                 // Check if the string can be parsed as an integer or a float
-                element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()
+                element.parse::<i64>().is_ok() || element.parse::<f32>().is_ok()
             }
         }
     }
@@ -964,7 +973,7 @@ pub mod parser {
             "parseFloat" | "words" => true,
             _ => {
                 // Check if the string can be parsed as an integer or a float
-                element.parse::<i32>().is_ok() || element.parse::<f32>().is_ok()
+                element.parse::<i64>().is_ok() || element.parse::<f32>().is_ok()
             }
         }
     }
@@ -996,7 +1005,7 @@ pub mod types {
     }
     #[derive(Clone, Debug, PartialEq)]  // PartialEq so we can compare to lists, debug for printing 
     pub enum WValue {
-        VInt (i32),
+        VInt (i64),
         VFloat (f32),
         VBool (bool),
         VString (String),
@@ -1035,7 +1044,7 @@ pub mod types {
     // To convert from string to the enum type
     impl WValue {
         pub fn from_string(s: &str) -> WValue {
-            if let Ok(num) = i32::from_str(s) {
+            if let Ok(num) = i64::from_str(s) {
                 WValue::VInt(num)
             } else if let Ok(num) = f32::from_str(s) {
                 WValue::VFloat(num)
