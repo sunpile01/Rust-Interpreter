@@ -1,4 +1,4 @@
-# assignment-2
+# Bprog-Language Interpreter
 
 ## Requirements and how to run the bprog-interpreter:
 Make sure you have rust installed on your pc, you can do the command 'rustc --version'. if it is not installed, you can follow the instructions on the offical rust download site: https://www.rust-lang.org/tools/install
