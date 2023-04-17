@@ -346,29 +346,41 @@ pub mod interpreter {
                 }
                 // Goes through the elements in the list 
                 for i in 0..list.len() {
-                    let mut dummy_stack: Vec<V> = vec![list[i].clone()];    // stack becomes the current list element
-                    println!("Dummy Stack before insert: {:?}", stack);
+                    let mut dummy_stack: Vec<V> = Vec::new();
+                    // Might be elements on the stack that should be added to the dummy stack for example
+                    // if the code block contains only a binary operation, we need the tokens to perform this operation on
+                    if let Some(token1) = stack.get(2).cloned() {
+                        if let Some(token2) = stack.get(3).cloned(){
+                            dummy_stack = vec![list[i].clone(), token1, token2];
+                        } else {
+                            dummy_stack = vec![list[i].clone(), token1];
+                        }
+                    } else {
+                        dummy_stack = vec![list[i].clone()];    // stack becomes the current list element
+                    }
+                    // Tried to make the match above the loop, but got some issues and did not have time to solve it
+                    
                     match valid_or_cblock {
                         Some(V::VCodeBlock(code_block)) => {
                             let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
                             parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun); // codeblock executed for list element
-                            println!("Dummy Stack after insert: {:?}", stack);
                         }
                         Some(operation) if  parser::is_valid_element_each_map(operation.to_string().as_str()) => { 
                             process_next = true;
                             parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun); // Valid symbol executed for list element
                         }
                         _ => {
-                            println!("Element after map/each is not a codeblock or valid operation!");
+                            if !process_next{   // Only needs to be printed once so can use process_next for this
+                            println!("Element after map/each is not a codeblock or valid operation!
+                                           Only unary operations are allowed for map and each");
+                            }
                         }
                     }
                     if !dummy_stack.is_empty() {
                         if is_map == 0 {
                             stack.insert(0, dummy_stack[0].clone()); // Insert the result of the codeblock execution on the list element to the stack
                         } else {
-                            println!("Stack before insert: {:?}", stack);
                             list[i] = dummy_stack[0].clone();  // Insert the item where codeblock has been executed
-                            println!("Stack after insert: {:?}", stack);
                         }
                     }
                 }
@@ -448,6 +460,7 @@ pub mod interpreter {
                 println!("Error: Types entered for fold operation were not correct");
             }
         } else {
+            // Cant remove elements here since 
             println!("Error: Not enough elements on stack to perform foldl");
         }
         // If it was a codeblock, the index for the next token is already sent by op_infix,
@@ -872,7 +885,7 @@ pub mod parser {
                                                 &tokens[closing_brace_index + second_closing_brace_index + 3..], var_and_fun);
                                         }
                                     } else {
-                                        println!("Error: Missing closing bracket for the last codeblock following if ");
+                                        println!("Error: Missing closing brace for the last codeblock following if ");
                                     }
                                 } else if is_valid_element(second_token){
                                     stack.insert(0, V::VString(second_token.clone().to_string()));
@@ -909,7 +922,7 @@ pub mod parser {
                                     interpreter::op_if(stack, 
                                                     &tokens[second_closing_brace_index + 3..], var_and_fun);
                                 } else {
-                                    println!("Error: Missing closing bracket for the last codeblock following if ");
+                                    println!("Error: Missing closing brace for the last codeblock following if ");
                                 }
                             } else if is_valid_element(second_token) {
                                 stack.insert(0, V::VString(second_token.clone().to_string()));
@@ -934,22 +947,22 @@ pub mod parser {
         }
     }
 
-    // Helper function to find the mathing end bracket for the bracket index it is sent as a parameter
+    // Helper function to find the mathing end brace for the brace index it is sent as a parameter
     fn find_matching_brace(tokens: &[&str]) -> Option<usize> {
         let mut open_braces = 0;
         // Go throught the remaining tokens
         for (i, token) in tokens.iter().enumerate() {
             if *token == "{" {
-                open_braces += 1;       // Now needs to find and extra closing bracket
+                open_braces += 1;       // Now needs to find and extra closing brace
             } else if *token == "}" {
                 if open_braces == 1 {   
-                    return Some(i);    // Found the corresponding closing bracket, return from the function
+                    return Some(i);    // Found the corresponding closing brace, return from the function
                 } else {
                     open_braces -= 1;
                 }
             }
         }
-        // Did not find a corresponding closing bracket
+        // Did not find a corresponding closing brace
         None   // Always called with "let Some (..) = find_matching_brace()" so the Some will handle the error
     }
     
