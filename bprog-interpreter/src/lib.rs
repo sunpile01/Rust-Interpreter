@@ -1,4 +1,9 @@
+pub mod types;
+pub mod parser;
+pub mod stack_operations;
 
+
+/* 
 pub mod interpreter {
     use std::collections::HashMap;
 
@@ -1131,3 +1136,4 @@ pub fn t(input: &str) -> String {
     let output: String = stack[0].to_string();  
     output
 }
+*/

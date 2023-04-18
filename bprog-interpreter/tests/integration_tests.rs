@@ -1,6 +1,27 @@
-mod test_literals {
-    use bprog_interpreter::t;
+mod test_function{
+    // integration testing. Function is called in the integration_tests.rs file located in the test folder
+    use bprog_interpreter::types::{WValue as V, Stack};
+    use bprog_interpreter::parser::process_input;
 
+    pub fn t(input: &str) -> String {
+
+    use std::collections::HashMap;
+    // Create the new stack and hashmap
+    let mut stack = Stack::new();                        
+    let mut var_and_fun: HashMap<String, V> = HashMap::new();  
+
+    // process the input with the input sent as a parameter on the new stack and hashmap
+    process_input(input, &mut stack, &mut var_and_fun);
+
+    // get and return the output
+    let output: String = stack[0].to_string();  
+    output
+    }   
+}
+
+mod test_literals {
+    use super::test_function::t;
+    
     #[test]
     fn test_literal_int() {
         assert_eq!(t("5"), "5")
@@ -68,7 +89,7 @@ mod test_literals {
 }
 
 mod test_simple_arithmetic {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_addition() {
@@ -93,7 +114,7 @@ mod test_simple_arithmetic {
 }
 
 mod test_arithmetic_with_type_coercion {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_addition_with_float() {
@@ -117,7 +138,7 @@ mod test_arithmetic_with_type_coercion {
 }
 
 mod test_bool_operations {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_and_operation() {
@@ -141,7 +162,7 @@ mod test_bool_operations {
 }
 
 mod test_comparison {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_less_than_operation() {
@@ -205,7 +226,7 @@ mod test_comparison {
 }
 
 mod test_stack_operations {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_swap_pop() {
@@ -224,7 +245,7 @@ mod test_stack_operations {
 }
 
 mod test_length {
-    use bprog_interpreter::t;
+    use super::test_function::t;
     #[test]
     fn test_hello_length() {
         assert_eq!(t("\" hello \" length"), "5");
@@ -247,7 +268,7 @@ mod test_length {
 }
 
 mod test_string_parsing {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_parse_integer() {
@@ -266,7 +287,7 @@ mod test_string_parsing {
 }
 
 mod test_lists {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_list_creation() {
@@ -330,7 +351,7 @@ mod test_lists {
 }
 
 mod test_list_quotations {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_map_multiply() {
@@ -384,7 +405,7 @@ mod test_list_quotations {
 }
 
 mod test_assignments {
-    use bprog_interpreter::t;
+    use super::test_function::t;
     #[test]
     fn test_variable_name() {
         assert_eq!(t("age"), "age");
@@ -413,7 +434,7 @@ mod test_assignments {
 }
 
 mod test_quotations {
-    use bprog_interpreter::t;
+    use super::test_function::t;
     #[test]
     fn test_exec_block() {
         assert_eq!(t("{ 20 10 + } exec"), "30");
@@ -441,7 +462,7 @@ mod test_quotations {
 }
 
 mod test_if {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_if_true() {
@@ -470,7 +491,7 @@ mod test_if {
 }
 
 mod test_if_without_quotation {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_if_true_condensed() {
@@ -499,7 +520,7 @@ mod test_if_without_quotation {
 }
 
 mod test_times {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_times_block() {
@@ -528,7 +549,7 @@ mod test_times {
 }
 
 mod test_loop {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_loop_with_conditional() {
@@ -547,7 +568,7 @@ mod test_loop {
 }
 
 mod test_functions {
-    use bprog_interpreter::t;
+    use super::test_function::t;
 
     #[test]
     fn test_odd_function() {

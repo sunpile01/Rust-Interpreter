@@ -1,7 +1,12 @@
-mod lib;
+mod parser;
+mod types;
+mod stack_operations;
+mod utilities;
 
-use crate::lib::parser;
-use crate::lib::types::{WValue as V, Stack};
+
+
+use crate::parser::process_input;
+use crate::types::{WValue as V, Stack};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
@@ -47,7 +52,7 @@ fn main() {
                         break;
                     }
                     // Process the input and print the output 
-                    parser::process_input(&repl_input, &mut stack, &mut symbol_table);
+                    process_input(&repl_input, &mut stack, &mut symbol_table);
                     print_stack(&stack);
                 }
                 stack.clear();
@@ -67,13 +72,13 @@ fn main() {
                     .expect("Something went wrong reading the file, most likely wrong filepath");
 
                 // Process the file and print the resulting stack
-                parser::process_input(&contents, &mut stack, &mut symbol_table);
+                process_input(&contents, &mut stack, &mut symbol_table);
                 print_stack(&stack);
                 stack.clear();
             }
             _ => {
                 // Default mode is processing the user input and printing the resulting stack
-                parser::process_input(&trimmed_input, &mut stack, &mut symbol_table);
+                process_input(&trimmed_input, &mut stack, &mut symbol_table);
                 print_stack(&stack);
                 stack.clear();
             }
@@ -81,6 +86,8 @@ fn main() {
     }
 }
 
+/// Would have been in a file called utilities.rs, but there are no other functions than this I would have there
+/// So left it in the main as I felt it was kinda pointless with a file for 1 small function.
 /// Prints the content of the stack 
 fn print_stack(stack: &Stack) {
     let output: String = stack
