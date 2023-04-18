@@ -1114,22 +1114,20 @@ pub mod types {
 
 }
 
-// integration testing
+// integration testing. Function is called in the integration_tests.rs file located in the test folder
 pub fn t(input: &str) -> String {
     use parser::process_input;
     use std::collections::HashMap;
     use types::{WValue as V};
-    // Warning: don't move this function to another module, as integration tests in
-    // directory `tests` with `cargo test` will only look into lib.rs, so make your parse and
-    // execution functions public and import them here.
-    let mut stack = types::Stack::new();
-    let mut var_and_fun: HashMap<String, V> = HashMap::new();
-    // The following test function should:
-    // 1. invoke parser (+lexer) with input string
-    // 2. invoke interpreter with tokens from parser as input
-    // 3. transform the result to a string (tip: implement Display traits)
+
+    // Create the new stack and hashmap
+    let mut stack = types::Stack::new();                        
+    let mut var_and_fun: HashMap<String, V> = HashMap::new();  
+
+    // process the input with the input sent as a parameter on the new stack and hashmap
     process_input(input, &mut stack, &mut var_and_fun);
 
-    let output: String = stack[0].to_string();
+    // get and return the output
+    let output: String = stack[0].to_string();  
     output
 }
