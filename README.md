@@ -38,9 +38,10 @@ The Bprog-Language supports various operations, such as:
 - Assignment operations: :=, fun 
 
 For explanation on how each of these works see the operation manual in the file "Operation-manual.md"
+
 5. Using Bprog
 
-To use the Bprog-Language Interpreter, enter a series of tokens separated by whitespace. Tokens can be data types, operations, or symbols like parentheses.
+To use the Bprog-Language Interpreter, enter a series of tokens separated by whitespace. Tokens can be data types or operations.
 
 Examples:
 
