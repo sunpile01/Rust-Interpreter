@@ -151,7 +151,6 @@ pub fn op_print(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
     if let Some(top_element) = stack.get(0).cloned() {  // Get top element, do not need to mutate it
         match top_element {
             V::VString(s) => {                      // Top element is of type String
-                println!("{}", s);
                 stack.remove(0);                    // Remove top element after printing it
             }
             _ => {
@@ -301,11 +300,9 @@ pub fn op_cons (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
     if stack.len() < 2 {
         return Err(ParseError::NotEnoughElements)
     } 
-    println!("{:?}", stack);
     let literal = stack.remove(1);                          // remove literal from stack      
     if let Some(V::VList(list)) = stack.get_mut(0) {        // top element is a list
         list.insert(0, literal);
-        println!("{:?}", stack);
     } else {
         return Err(ParseError::ExpectedList)     
     }
@@ -411,27 +408,21 @@ pub fn op_foldl(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
         // Check if the top element is a valid operation or a code block
         match stack.get(0) {
             Some(V::VCodeBlock(code_block)) => {
-                acc = process_list_for_foldl(acc, list, var_and_fun, Some(code_block), None);
+                acc = process_list_for_foldl(acc, list, var_and_fun, Some(code_block), None)?;
             }
             Some(operation) if parser::is_valid_element(operation.to_string().as_str()) => {
                 process_next = true;
-                acc = process_list_for_foldl(acc, list, var_and_fun, None, Some(operation));
+                acc = process_list_for_foldl(acc, list, var_and_fun, None, Some(operation))?;
             }
             _ => {
                 return Err(ParseError::ExpectedList)
             }
         }
-        if acc != 0 {        // The process_list_for_foldl did not fail
-            stack.remove(0); // Remove the code block or valid operation from the stack
-            stack.remove(0); // Remove the initial accumulator from the stack
-            stack.remove(0); // Remove the list from the stack
-            stack.insert(0, V::VInt(acc)); // Insert the accumulated value to the stack
-        } else {
-            stack.remove(0);
-            stack.remove(0);
-            stack.remove(0);
-            return Err(ParseError::InvalidListElement)
-        }
+        stack.remove(0); // Remove the code block or valid operation from the stack
+        stack.remove(0); // Remove the initial accumulator from the stack
+        stack.remove(0); // Remove the list from the stack
+        stack.insert(0, V::VInt(acc)); // Insert the accumulated value to the stack
+
     } else {
         return Err(ParseError::NonCompatibleTypes)
     }
@@ -473,10 +464,7 @@ pub fn op_if (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<Stri
             }
         }
     } else {
-        println!("Error: Wrong types provided for if statement!");
-        stack.remove(0);
-        stack.remove(0);
-        stack.remove(0);
+        return Err(ParseError::ExpectecCodeBlockOrValidOperation)
     }
 
     parser::process_tokens(&tokens, stack, var_and_fun)?; Ok(())
@@ -691,10 +679,9 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
                     }
                 }
                 "[" => {
-                    // TODO make the helper function work to remove duplicated code
                     if *token == "\"" || *token == "{" || *token == "[" {
                         let mut sub_tokens = Vec::new();
-                        sub_tokens.push(*token);
+                        sub_tokens.push(token.to_string());
                         let mut j = i + 1;
                         let sub_end_char = match *token {   //Update new end char 
                             "\"" => "\"",
@@ -702,23 +689,36 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
                             "[" => "]",
                             _ => return Err(ParseError::FirstElemNotValid), // will not reach this
                         };
-
+                
                         while let Some(token) = tokens.get(j) {
-                            sub_tokens.push(token);
+                            // If list contains a assigned variable insert the value of that variable
+                            if var_and_fun.contains_key(token.clone()) {
+                                let value = var_and_fun.get(token.clone()).unwrap().clone();
+                                sub_tokens.push(value.to_string());
+                            } else {
+                                sub_tokens.push(token.to_string());
+                            }
                             if token.contains(sub_end_char) {
                                 break;
                             }
                             j += 1;
                         }
+                        let sub_tokens_ref = sub_tokens.iter().map(AsRef::as_ref).collect::<Vec<&str>>();
                         let mut sub_stack: Stack = Vec::new();
-                        op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, var_and_fun)?;
+                        op_enclosed(&mut sub_stack, &sub_tokens_ref, token.to_string(), true, var_and_fun)?;
                         if let Some(value) = sub_stack.get(0) {
                             new_elements.push(value.clone());
                         }
                         i = j + 1;
                     } else {
-                        match V::from_string(token) {
-                            value => new_elements.push(value),
+                        // If list contains a assigned variable insert the value of that variable
+                        if var_and_fun.contains_key(token.clone()) {
+                            let value = var_and_fun.get(token.clone()).unwrap().clone();
+                            new_elements.push(value);
+                        } else {
+                            match V::from_string(token) {
+                                value => new_elements.push(value),
+                            }
                         }
                         i += 1;
                     }
@@ -748,11 +748,10 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
 /// TODO DOES NOT HANDLE STRINGS AND LISTS INSIDE CODEBLOCKS CORRECTLY
 /// Helper function to parse the codeblock into a vector of tokens
 fn parse_code_block_tokens(code_block: &str) -> Vec<&str> {
-    println! ("Codeblock: {:?}", code_block);
+    
     let code_block_no_braces = &code_block[1..code_block.len() - 1];
     let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
     let mut processed_tokens = Vec::new();
-    println! ("CodeblockTOkens: {:?}", code_block_tokens);
     // The first part here does not correctly split the lists and strings within codeblocks 
     // Since they are stored like this { [1, 2, 3, 4] }, which then turns [1 into one token
     // same goes for strings, therefore we need to split it further such that it becomes [ 1
@@ -771,13 +770,12 @@ fn parse_code_block_tokens(code_block: &str) -> Vec<&str> {
             processed_tokens.push(token);       // No [ or "
         }
     }
-    println!("processed_tokens: {:?}", processed_tokens);
     processed_tokens
 }
 
 /// Does foldl on the list sent as a parameter, returns the acummulated value to be placed on the stack
 fn process_list_for_foldl(acc: i64, list: &[V],
-    var_and_fun: &mut HashMap<String, V>, code_block: Option<&str>, operation: Option<&V>) -> i64 {
+    var_and_fun: &mut HashMap<String, V>, code_block: Option<&str>, operation: Option<&V>) -> Result<i64, ParseError> {
     let mut accumulator = acc;
     
     // Go through each list element
@@ -788,19 +786,18 @@ fn process_list_for_foldl(acc: i64, list: &[V],
         // Process either the code_block or operation on the dummy stack
         if let Some(code_block) = code_block {
             let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
-            parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun);
+            parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun)?;
         } else if let Some(operation) = operation { // Uses else if to unwrapt he operation first
-            parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun);
+            parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun)?;
         }
 
         // Update the accumulator with the new accumulated value 
         if let Some(V::VInt(new_acc)) = dummy_stack.get(0) {
             accumulator = *new_acc;
         } else {
-            println!("Error: An element in the list was not of integer type");
-            return 0;
+            return Err(ParseError::InvalidListElement);
         }
     }
-    accumulator
+    Ok(accumulator)
 }
 

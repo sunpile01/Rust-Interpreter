@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::stack_operations as operations;
 use crate::types::{Stack, OpBinary, WValue as V, ParseError};
 
+
 /// Parses the string input into "tokens" for example *, +, then calls the process_tokens function to 
 /// execute the corresponding code depending on the tokens. 
 pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) {
@@ -14,7 +15,20 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
             ParseError::StackEmpty => println!("Error: Stack empty"),
             ParseError::ExpectedList => println!("Error: Top element not a list"),
             ParseError::ListEmpty => println!("Error: List is empty, can't return an element"),
-            _ => println!("YES AHHAA"),
+            ParseError::ExpectedVOther => println!("Error: Expected VOther type for this operation!"),
+            ParseError::CouldNotParse => println!("Error: Could not parse the entered string!"),
+            ParseError::NotEnoughElements => println!("Error: Not Enough Elements provided for the operation"),
+            ParseError::MissingClosingQuote => println!("Error: Missing closing quote for either list, codeblock or string"),
+            ParseError::ExpectedCodeblock => println!("Error: The operation expected a codeblock!"),
+            ParseError::ExpectedQuotation => println!("Error: The operation expected either a codeblock or a list!"),
+            ParseError::ExpectecCodeBlockOrValidOperation => println!("Error: The operation expected a codeblock or a valid operation!"),
+            ParseError::ExpectedBoolOrNumber => println!("Error: The operation expected either a bool or a number!"),
+            ParseError::ExpectedString => println!("Error: The operation expected a string!"),
+            ParseError::DivisionByZero => println!("Error: Division by 0 is not allowed!"),
+            ParseError::NonCompatibleTypes => println!("Error: The types were not compatible for the given operation!"),
+            ParseError::FirstElemNotValid => println!("Error: The first element was not valid for the given operation!"),
+            ParseError::InvalidListElement => println!("Error: There was an invalid element in the list for the given operation!"),
+            _ => println!("Good luck finding the error! HAHA"),
             // Handle any other error variants you added
         }
     }
@@ -24,6 +38,8 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
 /// This function is called by each operation after executing the operation.
 pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
     if !tokens.is_empty() {
+        println!("Stack is: {:?}", stack);
+        println!("{:?}", tokens[0]);
         // Do operation according to what the top token is. 
         match tokens[0] {
             "*" => operations::op_binary(stack, OpBinary::Multiply,  &tokens, var_and_fun)?, 
