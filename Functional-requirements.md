@@ -67,10 +67,14 @@ Functional requirements for the Simple-language interpreter
     - Needs to support function definition denoted by 'fun'. Function definition takes two arguments, left hand side must be a symbol (aka function name), and the right hand side must be quotation (code block).
     - Once a symbol is bound to a function or variable, using that symbol will either run the function or evaluate the variable to a value.
 
-Functional requirements assumed by the developer: 
+### Functional requirements assumed by the developer: 
 
 - When using the single instructions together with map and each for example [ " hello " " I " ] each print , it is not allowed with binary operations such as +, - .. since map and each works on the list provided.
--  More points here...
+- Using the integer division operation 'div' on two floats will convert them to an integer and then divide them
+- Same goes for using float division '/' with integers, they will be converted to floats and then divided. 
+- True or False does not have the standard 1 and 0 values but are rather just true or false. 
+- The interpreter does not process the next tokens after an error is encountered. 
+- Doing the operations: head, length, empty and tail should not remove the original list
 
       
 

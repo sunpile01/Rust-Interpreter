@@ -30,6 +30,27 @@ pub enum WValue {
     VOther (String)
 }
 
+pub enum ParseError {
+    StackEmpty,
+    NotEnoughElements,
+    CouldNotParse,
+    EmptyOrNotCorrectType,
+    MissingClosingQuote,
+    ExpectedVOther,
+    ExpectedCodeblock,
+    ExpectedQuotation,
+    ExpectecCodeBlockOrValidOperation,
+    ExpectedBoolOrNumber,
+    ExpectedString,
+    ExpectedList,
+    DivisionByZero,
+    NonCompatibleTypes,
+    FirstElemNotValid,
+    InvalidListElement,
+    ListEmpty
+    // Add any other error variants you need
+}
+
 // To display the wrapped types as strings
 impl fmt::Display for WValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -57,6 +78,7 @@ impl fmt::Display for WValue {
         }
     }
 }
+
 // To convert from string to the enum type
 impl WValue {
     pub fn from_string(s: &str) -> WValue {

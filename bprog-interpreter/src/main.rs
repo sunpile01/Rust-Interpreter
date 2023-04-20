@@ -1,9 +1,6 @@
 mod parser;
 mod types;
 mod stack_operations;
-mod utilities;
-
-
 
 use crate::parser::process_input;
 use crate::types::{WValue as V, Stack};
@@ -98,8 +95,11 @@ fn print_stack(stack: &Stack) {
         })
         .collect::<Vec<String>>()   // Collects the transformed values into a vector
         .join(", ");                        // Joins the vector of string into one string with commas separating
-
+    
     println!("Stack: [{}]", output); // Print the formatted output
+    if stack.len() > 1 {
+        println!("|--------------Stack-Should-Only-Have-1-Element-After-Processing-Tokens--------------|");   
+    }
 }
 
 
