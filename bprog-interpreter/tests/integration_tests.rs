@@ -586,7 +586,7 @@ mod test_functions {
     fn test_to_list_function() {
         assert_eq!(t("toList { [ ] swap times cons } fun \
                   1 2 3 4 \
-                  4 toList"), "[1,2,3,4]");
+                  4 toList"), "[1, 2, 3, 4]");
     }
 
     #[test]

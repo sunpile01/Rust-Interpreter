@@ -745,12 +745,34 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
     Ok(())
 }
 
-/// TODO DOES NOT HANDLE STRINGS INSIDE CODEBLOCKS CORRECTLY
+/// TODO DOES NOT HANDLE STRINGS AND LISTS INSIDE CODEBLOCKS CORRECTLY
 /// Helper function to parse the codeblock into a vector of tokens
 fn parse_code_block_tokens(code_block: &str) -> Vec<&str> {
+    println! ("Codeblock: {:?}", code_block);
     let code_block_no_braces = &code_block[1..code_block.len() - 1];
     let code_block_tokens: Vec<&str> = code_block_no_braces.split_whitespace().collect();
-    code_block_tokens
+    let mut processed_tokens = Vec::new();
+    println! ("CodeblockTOkens: {:?}", code_block_tokens);
+    // The first part here does not correctly split the lists and strings within codeblocks 
+    // Since they are stored like this { [1, 2, 3, 4] }, which then turns [1 into one token
+    // same goes for strings, therefore we need to split it further such that it becomes [ 1
+    
+    for token in code_block_tokens {
+        let first_char = token.chars().next().unwrap(); // Get the first and last character if it is only
+        let last_char = token.chars().last().unwrap();  // one they become the same which is fine 
+
+        if first_char == '[' || first_char == '"' {         // Push [ or " first then variable
+            processed_tokens.push(&token[..1]);      
+            processed_tokens.push(&token[1..]);
+        } else if last_char == ']' || last_char == '"' {    // Opposite here variable first then ] or "
+            processed_tokens.push(&token[..token.len() - 1]);
+            processed_tokens.push(&token[token.len() - 1..]);
+        } else {
+            processed_tokens.push(token);       // No [ or "
+        }
+    }
+    println!("processed_tokens: {:?}", processed_tokens);
+    processed_tokens
 }
 
 /// Does foldl on the list sent as a parameter, returns the acummulated value to be placed on the stack

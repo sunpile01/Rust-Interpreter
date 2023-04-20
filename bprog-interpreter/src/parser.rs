@@ -24,7 +24,6 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
 /// This function is called by each operation after executing the operation.
 pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
     if !tokens.is_empty() {
-        println!("MY stack is: {:?}", stack);
         // Do operation according to what the top token is. 
         match tokens[0] {
             "*" => operations::op_binary(stack, OpBinary::Multiply,  &tokens, var_and_fun)?, 
