@@ -19,14 +19,14 @@ pub enum OpBinary {
     And,
     Or 
 }
-#[derive(Clone, Debug, PartialEq)]  // PartialEq so we can compare to lists, debug for printing 
+#[derive(Clone, Debug, PartialEq, PartialOrd)]  // PartialEq so we can compare to lists, debug for printing 
 pub enum WValue {
     VInt (i64),
     VFloat (f32),
     VBool (bool),
     VString (String),
     VList (Vec<WValue>),
-    VCodeBlock (String),    // Maybe should have been a vector but hard to change this late
+    VCodeBlock (String),   
     VOther (String)
 }
 

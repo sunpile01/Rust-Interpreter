@@ -13,7 +13,8 @@ The Bprog-Language Interpreter is a stack-based language interpreter designed to
 
 2. Syntax
 
-The Bprog-Language is whitespace-delimited and relies on a stack for handling operations. To perform an operation, enter the arguments you want the operation to be performed on for example: "3 2", followed by the operation itself, for exampel '+'. This will first push the 3 onto the stack and then 2, when the '+' operation is encountered, it is consumed and the resulting stack will be "5".
+The Bprog-Language is whitespace-delimited and relies on a stack for handling operations. To perform an operation, enter the arguments you want the operation to be performed on for example: "3 2", followed by the operation itself, for exampel '+'. This will first push the 3 onto the stack and then 2, when the '+' operation is encountered, it is consumed and the resulting stack will be "5". The syntax utilizes reverse polish notation for most of the operations, which means that you first enter the values and the the operation for example:
+" [ 1 2 3 4 ] head ". However, there are control flow expressions control flow operations that uses a infix notation for example: " 1 1 == if { 10 10 + } { 10 10 * } " where 'if' is the operation, this input would produce the stack " 20 ", check the "Operation-manual.md" if you are unsure about the syntax for each operation.
 
 3. Data Types
 
@@ -65,7 +66,13 @@ If you encounter issues or errors while using the Bprog-Language Interpreter, th
 - There are no mismatched parentheses, brackets, or braces.
 - The stack contains the necessary elements for the desired operation.
 
+You can also check the manual for operations located in the file "Operation-manual.md" for trubleshooting if there are issues with the operations. 
+
 8. Have fun with the Bprog-language!
 
 
-## The functional and non-functional requirements for this project can be found in the respective files called: "Functional-requirements.md" and "Non-functional-requirements.md"
+## Other documentation files: 
+- Non-functional-requirements.md
+- Functional-requirements.md
+- Self-assesment.md
+- Operation-manual.md

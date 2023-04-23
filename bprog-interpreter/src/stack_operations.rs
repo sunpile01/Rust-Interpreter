@@ -56,16 +56,26 @@ pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str],  var_and_fun:
         }               
         (V::VInt(a), V::VInt(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
         (V::VFloat(a), V::VFloat(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
+        (V::VList(a), V::VList(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b)),
+        // Need to do these the opposite way since partialEq that needs to be implemented to compare these types
+        // does it slightly different
+        (V::VString(a), V::VString(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a > b)),
+        (V::VCodeBlock(a), V::VCodeBlock(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a > b)),
 
         (V::VInt(a), V::VInt(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a > b)),
         (V::VFloat(a), V::VFloat(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a > b)),
+        (V::VList(a), V::VList(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a > b)),
+        // Same as for RGreater here: 
+        (V::VCodeBlock(a), V::VCodeBlock(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a < b)),
+        (V::VString(a), V::VString(b), OpBinary::LGreater) => stack.insert(0, V::VBool(a < b)),
 
         (V::VInt(a), V::VInt(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
         // Searched a bit online and found that comparing one float subtracted by another to epsilon is better
         // than using == which can cause problems
         (V::VFloat(a), V::VFloat(b), OpBinary::Equality) => stack.insert(0, V::VBool((a - b).abs() < f32::EPSILON)),
         (V::VString(a), V::VString(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
-        (V::VList(a), V::VList(b), OpBinary::Equality) => {stack.insert(0, V::VBool(a == b))}
+        (V::VList(a), V::VList(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
+        (V::VCodeBlock(a), V::VCodeBlock(b), OpBinary::Equality) => stack.insert(0, V::VBool( a == b )),
 
         (V::VBool(a), V::VBool(b), OpBinary::Equality) => stack.insert(0, V::VBool(a == b)),
         (V::VBool(a), V::VBool(b), OpBinary::And) => stack.insert(0, V::VBool(a && b)),
@@ -90,6 +100,7 @@ pub fn op_binary(stack: &mut Stack, op: OpBinary, tokens: &[&str],  var_and_fun:
 
         (V::VInt(a), V::VFloat(b), OpBinary::RGreater) => stack.insert(0, V::VBool((a as f32) < b  )),
         (V::VFloat(a), V::VInt(b), OpBinary::RGreater) => stack.insert(0, V::VBool(a < b as f32)),
+
         // For equality we take one minus the other and check if the result is bigger than a very small number
         (V::VInt(a), V::VFloat(b), OpBinary::Equality) => stack.insert(0, V::VBool((a as f32 - b).abs() < f32::EPSILON)),
         (V::VFloat(a), V::VInt(b), OpBinary::Equality) => stack.insert(0, V::VBool((a - b as f32).abs() < f32::EPSILON)),
@@ -151,6 +162,7 @@ pub fn op_print(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
     if let Some(top_element) = stack.get(0).cloned() {  // Get top element, do not need to mutate it
         match top_element {
             V::VString(s) => {                      // Top element is of type String
+                println!("{}", s);
                 stack.remove(0);                    // Remove top element after printing it
             }
             _ => {
@@ -345,6 +357,7 @@ pub fn op_exec (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
 /// For each element in a list it executes a given code block. if is_map is 1 the original list is updated 
 /// and we have done a map, if it is 0 then the original list is removed and we performed each.
 pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i64, var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
+    
     let mut process_next = false;
     if stack.len() < 2 {
         return Err(ParseError::NotEnoughElements)
@@ -360,22 +373,21 @@ pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i64, var_and_f
         // Goes through the elements in the list 
         for i in 0..list.len() {
             let mut dummy_stack: Vec<V> = Vec::new();   
-            dummy_stack = vec![list[i].clone()];    // stack becomes the current list element
-
+            dummy_stack = vec![list[i].clone()];    // dummy stack becomes the current list element
             // Tried to make the match above the loop, but got some issues and did not have time to solve it
             match valid_or_cblock {
                 Some(V::VCodeBlock(code_block)) => {
                     let code_block_tokens: Vec<&str> = parse_code_block_tokens(code_block);
-                    parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun)?; // codeblock executed for list element
+                    // codeblock executed for list element
+                    parser::process_tokens(&code_block_tokens, &mut dummy_stack, var_and_fun)?;
                 }
                 Some(operation) if  parser::is_valid_element_each_map(operation.to_string().as_str()) => { 
                     process_next = true;
-                    parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun)?; // Valid symbol executed for list element
+                    // Valid symbol executed for list element
+                    parser::process_tokens(&[operation.to_string().as_str()], &mut dummy_stack, var_and_fun)?;
                 }
                 _ => {
-                    if !process_next{   // Only needs to be printed once so can use process_next for this
-                        return Err(ParseError::ExpectedQuotation)
-                    }
+                    return Err(ParseError::ExpectedQuotation)
                 }
             }
             if !dummy_stack.is_empty() {
@@ -392,6 +404,7 @@ pub fn op_map_or_each(stack: &mut Stack, tokens: &[&str], is_map: i64, var_and_f
     } else {
         return Err(ParseError::ExpectedList)
     }
+
     parser::process_tokens(&tokens[if process_next { 1 } else { 0 }..], stack, var_and_fun)?; Ok(())
 }
 

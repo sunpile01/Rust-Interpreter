@@ -28,8 +28,7 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
             ParseError::NonCompatibleTypes => println!("Error: The types were not compatible for the given operation!"),
             ParseError::FirstElemNotValid => println!("Error: The first element was not valid for the given operation!"),
             ParseError::InvalidListElement => println!("Error: There was an invalid element in the list for the given operation!"),
-            _ => println!("Good luck finding the error! HAHA"),
-            // Handle any other error variants you added
+            _ => println!("An unexpected error occured!"),
         }
     }
 }
@@ -38,8 +37,6 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
 /// This function is called by each operation after executing the operation.
 pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
     if !tokens.is_empty() {
-        println!("Stack is: {:?}", stack);
-        println!("{:?}", tokens[0]);
         // Do operation according to what the top token is. 
         match tokens[0] {
             "*" => operations::op_binary(stack, OpBinary::Multiply,  &tokens, var_and_fun)?, 
@@ -150,8 +147,7 @@ fn handle_code_block_case(stack: &mut Stack, tokens: &[&str], operation_type: i6
             _ => {}
         }
     } else {
-        println!("Error: Missing closing brace for the first code block!");
-        return Err(ParseError::ListEmpty);
+        return Err(ParseError::MissingClosingQuote);
     }
     Ok(())
 }
