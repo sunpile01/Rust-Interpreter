@@ -1,5 +1,6 @@
 
 use std::collections::HashMap;
+
 use crate::stack_operations as operations;
 use crate::types::{Stack, OpBinary, WValue as V, ParseError};
 
@@ -82,6 +83,10 @@ pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut Hash
             "fun" => operations::op_assign_function(stack, &tokens, var_and_fun)?,
             "exec" => operations::op_exec(stack, &tokens, var_and_fun)?,
             "pop" => operations::op_pop(stack, &tokens, var_and_fun)?,
+            ":b" => print_bindings(stack, &tokens, var_and_fun)?,
+            ":s" => {
+                println!("{:?}", stack); process_tokens(&tokens[1..], stack, var_and_fun)?;
+            }
             _ => {
                 // Check if the token is already in the hashmap
                 if var_and_fun.contains_key(tokens[0]) {
@@ -221,9 +226,17 @@ fn handle_if_case(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<
     Ok(())
 }
 
+fn print_bindings(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError>{
 
+    for (key, value) in var_and_fun.clone() {
+        println!("Binding name: {}, Value: {:?}", key, value);
+    }
+
+    process_tokens(&tokens[1..], stack, var_and_fun)?;
+    Ok(())
+}
 /// Helper function to find the mathing end brace for the brace index it is sent as a parameter
-fn find_matching_brace(tokens: &[&str]) -> Option<usize> {
+pub fn find_matching_brace(tokens: &[&str]) -> Option<usize> {
     let mut open_braces = 0;
     // Go throught the remaining tokens
     for (i, token) in tokens.iter().enumerate() {

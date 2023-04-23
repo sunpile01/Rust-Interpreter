@@ -10,7 +10,8 @@ use std::io::{self, Write};
 fn main() {
     let mut stack = Stack::new();
     let mut symbol_table: HashMap<String, V> = HashMap::new();
-
+    let mut replmode = false;
+    println!("You can now enter the input for the interpreter if you wish!");
     println!("Available commands:");
     println!("h or H - Show this help message");
     println!("r or R - Enter REPL mode");
@@ -48,9 +49,10 @@ fn main() {
                     if repl_input.trim().to_lowercase() == "q" {
                         break;
                     }
+                    replmode = true;
                     // Process the input and print the output 
                     process_input(&repl_input, &mut stack, &mut symbol_table);
-                    print_stack(&stack);
+                    print_stack(&stack, replmode);
                 }
                 stack.clear();
             }
@@ -65,18 +67,23 @@ fn main() {
                 let filepath = filepath.trim();
 
                 // Get the contents of the file specified by filepath
-                let contents = fs::read_to_string(filepath)
-                    .expect("Something went wrong reading the file, most likely wrong filepath");
-
-                // Process the file and print the resulting stack
-                process_input(&contents, &mut stack, &mut symbol_table);
-                print_stack(&stack);
-                stack.clear();
+                match fs::read_to_string(filepath) {
+                    Ok(contents) => {
+                        // Process the file and print the resulting stack
+                        replmode = false;
+                        process_input(&contents, &mut stack, &mut symbol_table);
+                        print_stack(&stack, replmode);
+                        stack.clear();
+                    },
+                    Err(_) => {
+                        println!("Filepath not found!");
+                    },
+                }
             }
             _ => {
                 // Default mode is processing the user input and printing the resulting stack
                 process_input(&trimmed_input, &mut stack, &mut symbol_table);
-                print_stack(&stack);
+                print_stack(&stack, replmode);
                 stack.clear();
             }
         }
@@ -86,7 +93,7 @@ fn main() {
 /// Would have been in a file called utilities.rs, but there are no other functions than this I would have there
 /// So left it in the main as I felt it was kinda pointless with a file for 1 small function.
 /// Prints the content of the stack 
-fn print_stack(stack: &Stack) {
+fn print_stack(stack: &Stack, replmode: bool) {
     let output: String = stack
         .iter() // Iterator for the stack items
         .map(|v| match v {   // For every item in the stack pattern match on value 
@@ -96,9 +103,13 @@ fn print_stack(stack: &Stack) {
         .collect::<Vec<String>>()   // Collects the transformed values into a vector
         .join(", ");                        // Joins the vector of string into one string with commas separating
     
-    println!("Stack: [{}]", output); // Print the formatted output
+    println!("[{}]", output);               // Print the formatted output
     if stack.len() > 1 {
-        println!("|--------------Stack-Should-Only-Have-1-Element-After-Processing-Tokens--------------|");   
+        if !replmode { 
+            println!("Error: Stack Should Only Have 1 Element After Processing Tokens"); 
+        }  else {
+            println!("\"--\"");
+        }
     }
 }
 
