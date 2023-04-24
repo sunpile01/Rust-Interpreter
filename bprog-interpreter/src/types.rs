@@ -47,8 +47,9 @@ pub enum ParseError {
     NonCompatibleTypes,
     FirstElemNotValid,
     InvalidListElement,
-    ListEmpty
-    // Add any other error variants you need
+    ListEmpty,
+    VariableNotFound,
+    ExpectedVariable
 }
 
 // To display the wrapped types as strings

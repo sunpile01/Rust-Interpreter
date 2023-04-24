@@ -84,6 +84,7 @@ Functional requirements for the Simple-language interpreter
 - True or False does not have the standard 1 and 0 values but are rather just true or false. 
 - The interpreter does not process the next tokens after an error is encountered. 
 - Doing the operations: head, length, empty and tail should not remove the original list
+- I added a main menu instead of having to start the program in different modes by chosing repl, file, or just use the interpreter right away. Only difference here is that you can not use enter for input with multiple lines from the main menu. Thats why I added filemode so the input can be read from a file instead. 
 
       
 

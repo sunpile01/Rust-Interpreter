@@ -29,6 +29,7 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
             ParseError::NonCompatibleTypes => println!("Error: The types were not compatible for the given operation!"),
             ParseError::FirstElemNotValid => println!("Error: The first element was not valid for the given operation!"),
             ParseError::InvalidListElement => println!("Error: There was an invalid element in the list for the given operation!"),
+            ParseError::ExpectedVariable => println!("Error: The operation ' expected a self defined variable or function!"),
             _ => println!("An unexpected error occured!"),
         }
     }
@@ -87,6 +88,7 @@ pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut Hash
             ":s" => {
                 println!("{:?}", stack); process_tokens(&tokens[1..], stack, var_and_fun)?;
             }
+            "'" => operations::op_tick(stack, &tokens, var_and_fun)?,
             _ => {
                 // Check if the token is already in the hashmap
                 if var_and_fun.contains_key(tokens[0]) {
@@ -99,9 +101,9 @@ pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut Hash
                         // Put onto the stack
                         process_tokens(&["exec"], stack, var_and_fun)?;
                     }
-                    process_tokens(&tokens[1..], stack, var_and_fun)?
+                    process_tokens(&tokens[1..], stack, var_and_fun)?;
                 }
-                else {
+                else {               // If not a symbol put it on the stack as a VOther type done by op_num
                     operations::op_num(stack, tokens[0]);
                     process_tokens(&tokens[1..], stack, var_and_fun)?;
                 }

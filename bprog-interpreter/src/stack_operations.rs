@@ -625,6 +625,22 @@ pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str], var_a
     parser::process_tokens(&tokens[1..], stack, var_and_fun)?; Ok(())
 }
 
+/// Checks if the next token is a key in the hashmap, puts the key found in the hashmap
+/// on top of the stack if found. 
+pub fn op_tick (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
+    if let Some(next_token) = tokens.get(1) {
+        if var_and_fun.contains_key(next_token.clone()) {
+            stack.push(V::VOther(next_token.to_string().clone()));
+        } else {
+            return Err(ParseError::NotEnoughElements);
+        }
+    } else {
+        return Err(ParseError::ExpectedVariable);
+    }
+    process_tokens(&tokens[2..], stack, var_and_fun)?;
+    Ok(())
+}
+
 
 /// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
 /// Only supports 2 layers of nesting at this point and is very smelly as Mariusz would say
