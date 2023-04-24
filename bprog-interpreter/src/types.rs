@@ -48,7 +48,6 @@ pub enum ParseError {
     FirstElemNotValid,
     InvalidListElement,
     ListEmpty,
-    VariableNotFound,
     ExpectedVariable
 }
 

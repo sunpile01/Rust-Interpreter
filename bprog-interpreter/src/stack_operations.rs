@@ -625,17 +625,36 @@ pub fn op_parse_num(stack: &mut Stack, parse_float: bool, tokens: &[&str], var_a
     parser::process_tokens(&tokens[1..], stack, var_and_fun)?; Ok(())
 }
 
+/// Insert the bound value of the self defined variable to the stack
+pub fn op_eval (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
+    
+    // Get the variable from the stack 
+    if let Some(V::VOther(variable)) = stack.get(0).clone(){
+        if var_and_fun.contains_key(variable){                       // The variable is defined 
+            let value = var_and_fun.get(variable).unwrap().clone();  // Unwrap and clone the value
+            stack.insert(0, value);                                  
+        } else {
+            return Err(ParseError::ExpectedVariable)
+        }
+    } else {
+        return Err(ParseError::EmptyOrNotCorrectType)
+    }
+    stack.remove(1);                                            // Remove the symbol from the stack
+    process_tokens(&tokens[1..], stack, var_and_fun)?; Ok(())
+}
+
 /// Checks if the next token is a key in the hashmap, puts the key found in the hashmap
 /// on top of the stack if found. 
 pub fn op_tick (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
-    if let Some(next_token) = tokens.get(1) {
-        if var_and_fun.contains_key(next_token.clone()) {
+    // Get the variable to be added to the stack
+    if let Some(next_token) = tokens.get(1) {                  
+        if var_and_fun.contains_key(next_token.clone()) {           // Check if the variable is defined
             stack.push(V::VOther(next_token.to_string().clone()));
         } else {
-            return Err(ParseError::NotEnoughElements);
+            return Err(ParseError::ExpectedVariable);
         }
     } else {
-        return Err(ParseError::ExpectedVariable);
+        return Err(ParseError::EmptyOrNotCorrectType);
     }
     process_tokens(&tokens[2..], stack, var_and_fun)?;
     Ok(())

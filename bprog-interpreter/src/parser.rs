@@ -30,7 +30,7 @@ pub fn process_input(line: &str, stack: &mut Stack, var_and_fun: &mut HashMap<St
             ParseError::FirstElemNotValid => println!("Error: The first element was not valid for the given operation!"),
             ParseError::InvalidListElement => println!("Error: There was an invalid element in the list for the given operation!"),
             ParseError::ExpectedVariable => println!("Error: The operation ' expected a self defined variable or function!"),
-            _ => println!("An unexpected error occured!"),
+            ParseError::EmptyOrNotCorrectType => println!("Error: Either wrong type provided for the operation or missing type/types!"),
         }
     }
 }
@@ -85,10 +85,11 @@ pub fn process_tokens(tokens: &[&str], stack: &mut Stack, var_and_fun: &mut Hash
             "exec" => operations::op_exec(stack, &tokens, var_and_fun)?,
             "pop" => operations::op_pop(stack, &tokens, var_and_fun)?,
             ":b" => print_bindings(stack, &tokens, var_and_fun)?,
+            "'" => operations::op_tick(stack, &tokens, var_and_fun)?,
+            "eval" => operations::op_eval(stack, &tokens, var_and_fun)?,
             ":s" => {
                 println!("{:?}", stack); process_tokens(&tokens[1..], stack, var_and_fun)?;
             }
-            "'" => operations::op_tick(stack, &tokens, var_and_fun)?,
             _ => {
                 // Check if the token is already in the hashmap
                 if var_and_fun.contains_key(tokens[0]) {
