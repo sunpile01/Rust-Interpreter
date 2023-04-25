@@ -431,6 +431,17 @@ mod test_assignments {
         assert_eq!(t("age 20 := [ 10 age ]"), "[10, 20]");
     }
 
+    #[test]
+    fn test_variable_tick() {
+        assert_eq!(t("age 20 := ' age"), "age");
+    }
+
+    #[test]
+    fn test_variable_eval() {
+        assert_eq!(t("age 20 := ' age eval"), "20");
+    }
+   
+
 }
 
 mod test_quotations {

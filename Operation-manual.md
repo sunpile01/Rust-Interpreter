@@ -181,3 +181,11 @@
 - Symbol evaluation: Once a symbol is bound to a function or variable, using that symbol will either run the function or evaluate the variable to a value.
     - Example:
         - If we have declared the add_five function as described above, and a variable x that is assigned the integer 5. Then we can do the input: "x add_five", first 5 is added to the stack and then "5 +" is done because of the add_five function, and the resulting stack is [ 10 ]
+
+- " ' ": The tick operator denoted by ' . Allows for pushing a symbol onto the stack without actually evaluating it to a value.
+    - Example:
+        - If we have defined the variable age like this: "age 15 :=" and the do the input " ' age " then the stack will be [ age ] and not [ 15 ].
+
+- "eval": This operator converts the symbol that is already onto the stack to a value.
+    - Example: 
+        - If we now have the stack [ age ] with the symbol defined from above, if we do "eval" then the stack will now be [ 15 ].

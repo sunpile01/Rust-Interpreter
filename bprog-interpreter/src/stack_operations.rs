@@ -668,7 +668,7 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
     let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
     let mut index = 0;
 
-    // Function only called for these three starting symbols, no need for handling exceptions
+    // Function only called for these three starting symbols, should never reach error
     let (start_char, end_char): (String, String) = match starting_symbol.as_str() {
         "\"" => ("\"".to_string(), "\"".to_string()),
         "[" => ("[".to_string(), "]".to_string()),
@@ -676,17 +676,20 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
         _ => return Err(ParseError::FirstElemNotValid), 
     };
     
+    // Go through all the tokens except for the initial one 
     let mut i = 1;
     while let Some(token) = tokens.get(i) {
         if *token == end_char {     // Token is the correct end_char                          
             index = i;              // Set the index to the last token
             break;
         } else {
+            // Process based on the starting character
             match start_char.as_str() {
                 "\"" => {                               // Just push token + space
                     new_string.push_str(token);
-                    if i + 1 < tokens.len() && *tokens[i + 1] != end_char {     // Next token is not end_char
-                        new_string.push(' ');
+                    // Space between words in the string, not before ending "
+                    if i + 1 < tokens.len() && *tokens[i + 1] != end_char {  
+                        new_string.push(' ');                                  
                     }
                     i += 1;
                 }
@@ -694,39 +697,50 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
                     // TODO make the helper function work to remove duplicated code
                     if *token == "\"" || *token == "{" || *token == "[" {
                         let mut sub_tokens = Vec::new();   // Vec with tokens following initial ", { or [
-                        sub_tokens.push(*token);
+                        sub_tokens.push(token.to_string());           
                         let mut j = i + 1;
 
-                        let sub_end_char = match *token {   //Update new end char 
+                        let sub_end_char = match *token {   // Update new end char
                             "\"" => "\"",
                             "{" => "}",
                             "[" => "]",
                             _ => return Err(ParseError::FirstElemNotValid), // will not reach this
                         };
 
-                        // Goes through all the tokens untill it finds the closing " and adds them to the new stack
+                        // Goes through all the tokens untill it finds the sub_end_char and adds them to the new stack
                         while let Some(token) = tokens.get(j) {
-                            sub_tokens.push(token);
+                            // If list contains a assigned variable insert the value of that variable
+                            if var_and_fun.contains_key(token.clone()) {
+                                let value = var_and_fun.get(token.clone()).unwrap().clone();
+                                sub_tokens.push(value.to_string());
+                            } else {
+                                sub_tokens.push(token.to_string());
+                            }
                             if token.contains(sub_end_char) {
                                 break;
                             }
                             j += 1;
                         }
+                        let sub_tokens_ref = sub_tokens.iter().map(AsRef::as_ref).collect::<Vec<&str>>();
                         let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
-                        op_enclosed(&mut sub_stack, &sub_tokens, token.to_string(), true, var_and_fun)?;
-                        if let Some(value) = sub_stack.get(0) {         // Get the String, list or codeblock element from the sub stack
-                            new_string.push_str(&format!("{} ", value.to_string()));
+                        // Calls itself with the new sub_tokens to process them
+                        op_enclosed(&mut sub_stack, &sub_tokens_ref, token.to_string(), true, var_and_fun)?;
+                        // Get the String, list or codeblock element from the sub stack
+                        if let Some(value) = sub_stack.get(0) {         
+                            new_string.push_str(&format!("{} ", value.to_string()));  // Push it to the new string
                         }
                         i = j + 1;
                     } else {
+                        // The next token is neither a {, [ or ", just push it to the new stack
                         new_string.push_str(token);
                         if i + 1 < tokens.len() && *tokens[i + 1] != end_char {
-                            new_string.push(' ');
+                            new_string.push(' ');                   // Add space if its not the end char
                         }
                         i += 1;
                     }
                 }
                 "[" => {
+                    // Almost identical to the { case
                     if *token == "\"" || *token == "{" || *token == "[" {
                         let mut sub_tokens = Vec::new();
                         sub_tokens.push(token.to_string());

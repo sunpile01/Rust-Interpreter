@@ -1,4 +1,4 @@
-Functional requirements for the Simple-language interpreter
+# Functional requirements for the bprog-interpreter
 
 ### Functional requirements from the user (teacher).
 ### Bprog must: 
@@ -75,6 +75,8 @@ Functional requirements for the Simple-language interpreter
     - Needs to support assignment denoted by ':='. Assignment takes two arguments, left hand side must be a symbol (aka variable), and right hand side can be any value different from a symbol, eg. number, bool, list or code_block.
     - Needs to support function definition denoted by 'fun'. Function definition takes two arguments, left hand side must be a symbol (aka function name), and the right hand side must be quotation (code block).
     - Once a symbol is bound to a function or variable, using that symbol will either run the function or evaluate the variable to a value.
+    - Should implement the tick ' operator that allows the user to print the symbol onto the stack without evaluating it to a value
+    - Should implement the 'eval' operator that evaluates a symbol that is already on the stack to the bound value and inserts this to the stack.
 
 ### Functional requirements assumed by the developer: 
 

@@ -1,12 +1,12 @@
 
 use core::fmt;
 use std::str::FromStr;
-use ryu;
+use ryu;                         // Used to format floats with correct decimal values
 
 // Represents the program stack
 pub type Stack = Vec<WValue>;
 
-#[derive(Debug, Copy, Clone)]            // For printing out the OpBinary, for example Add.
+#[derive(Debug, Copy, Clone)]    // For printing out the OpBinary, for example Add.
 pub enum OpBinary {
     Add,
     Subtract,
@@ -19,7 +19,8 @@ pub enum OpBinary {
     And,
     Or 
 }
-#[derive(Clone, Debug, PartialEq, PartialOrd)]  // PartialEq so we can compare to lists, debug for printing 
+// Partial Eq and Ord,  so we can compare to lists, debug for printing 
+#[derive(Clone, Debug, PartialEq, PartialOrd)]  
 pub enum WValue {
     VInt (i64),
     VFloat (f32),
@@ -30,6 +31,7 @@ pub enum WValue {
     VOther (String)
 }
 
+// The different error types for the program
 pub enum ParseError {
     StackEmpty,
     NotEnoughElements,

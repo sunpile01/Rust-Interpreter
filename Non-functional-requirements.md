@@ -1,6 +1,6 @@
 ## Non-functional requirements for the Bprog-language interpreter
 - Performance
-    - The interpreter should process and execute most operations within an acceptable response time (e.g., less than 300 milliseconds) for simple input expressions.
+    - The interpreter should process and execute most operations within an acceptable response time ( for ecample less than 300 milliseconds) for simple input expressions.
     - The interpreter should be able to handle large input expressions without noticably large execution times.
 
 - Usability
@@ -11,21 +11,21 @@
     - The interpreter should be designed to allow for future expansion, such as adding new data types, operations, or features.
 
 - Maintainability
-    - The source code should be well-documented and follow a consistent coding style to facilitate easy maintenance and updates.
-    - The interpreter should be modular, with a clear separation of concerns between different components (e.g., parsing, execution, error handling).
+    - The source code should be well documented to allow for easy maintenance and updates.
+    - The interpreter should have good modularization and seperate the different main functionalities of the program into seperate files.
 
 - Portability
-    - The interpreter should be platform-independent and capable of running on multiple operating systems (e.g., Windows, macOS, Linux) with minimal modification.
+    - The interpreter should be capable of running on multiple operating systems as long as the necessary rust installations are present on the users computer.
 
 - Reliability
     - The interpreter should handle unexpected input gracefully, providing informative error messages and avoiding crashes or undefined behavior.
 
 - Testability
-    - The interpreter should include a comprehensive test suite covering all major functionality.
-    - The test suite should be easily expandable, allowing for the addition of new test cases as needed.
+    - The interpreter should include a comprehensive list of tests covering all major functionality.
+    - The list of tests should be easily expandable, allowing for the addition of new test cases as needed.
 
 - Security
-    - The interpreter should not expose any security vulnerabilities, such as buffer overflows.
+    - The interpreter should not expose any security vulnerabilities.
 
 - Documentation
     - The interpreter's documentation should explain the program well to the user, and be easily accessible. It should also provide information about the requirements for the program and the development process. 
