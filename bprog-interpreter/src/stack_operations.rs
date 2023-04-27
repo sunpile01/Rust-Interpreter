@@ -661,8 +661,10 @@ pub fn op_tick (stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<St
 }
 
 
-/// Adds a String, codeblock or list to the stack depending on the 'starting_symbol'
-/// Only supports 2 layers of nesting at this point and is very smelly as Mariusz would say
+/// Adds a String, codeblock or list to the stack depending on the 'starting_symbol',
+/// Supports multiple layers of nesting of codeblocks and lists. 
+/// for example: [ 1 2 [ 3 4 { " hello " { 5 6 { 7 8 } 9 } 10 } 11 12 ] 1 " yes " ] is valid. 
+/// This is what Mariusz probably would call a "Smelly function", but it does get the job done atleast. 
 pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, process_next: bool, var_and_fun: &mut HashMap<String, V>) -> Result<(), ParseError> {
     let mut new_string = String::new();            // {} and "" represented as a string
     let mut new_elements: Vec<V> = Vec::new();     // [] list represented as a vector 
@@ -680,118 +682,108 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
     let mut i = 1;
     while let Some(token) = tokens.get(i) {
         if *token == end_char {     // Token is the correct end_char                          
-            index = i;              // Set the index to the last token
+            index = i;              // Set the index to the last token and break the loop
             break;
         } else {
             // Process based on the starting character
             match start_char.as_str() {
-                "\"" => {                               // Just push token + space
+                "\"" => {
+                    // String can never be nested so only need to push the new token 
                     new_string.push_str(token);
-                    // Space between words in the string, not before ending "
-                    if i + 1 < tokens.len() && *tokens[i + 1] != end_char {  
-                        new_string.push(' ');                                  
+                    // Push space between each token the string consists of except the last one
+                    if *tokens[i + 1] != end_char {
+                        new_string.push(' ');
                     }
                     i += 1;
                 }
-                "{" => {
-                    // TODO make the helper function work to remove duplicated code
+                // Here we need to handle nested elements 
+                "{" | "[" => {
+                    // Nested element found
                     if *token == "\"" || *token == "{" || *token == "[" {
-                        let mut sub_tokens = Vec::new();   // Vec with tokens following initial ", { or [
-                        sub_tokens.push(token.to_string());           
-                        let mut j = i + 1;
-
-                        let sub_end_char = match *token {   // Update new end char
-                            "\"" => "\"",
-                            "{" => "}",
-                            "[" => "]",
-                            _ => return Err(ParseError::FirstElemNotValid), // will not reach this
-                        };
-
-                        // Goes through all the tokens untill it finds the sub_end_char and adds them to the new stack
-                        while let Some(token) = tokens.get(j) {
-                            // If list contains a assigned variable insert the value of that variable
-                            if var_and_fun.contains_key(token.clone()) {
-                                let value = var_and_fun.get(token.clone()).unwrap().clone();
-                                sub_tokens.push(value.to_string());
-                            } else {
-                                sub_tokens.push(token.to_string());
-                            }
-                            if token.contains(sub_end_char) {
-                                break;
-                            }
-                            j += 1;
-                        }
-                        let sub_tokens_ref = sub_tokens.iter().map(AsRef::as_ref).collect::<Vec<&str>>();
-                        let mut sub_stack: Stack = Vec::new();          // Dummy stack to send to op_enclosed
-                        // Calls itself with the new sub_tokens to process them
-                        op_enclosed(&mut sub_stack, &sub_tokens_ref, token.to_string(), true, var_and_fun)?;
-                        // Get the String, list or codeblock element from the sub stack
-                        if let Some(value) = sub_stack.get(0) {         
-                            new_string.push_str(&format!("{} ", value.to_string()));  // Push it to the new string
-                        }
-                        i = j + 1;
-                    } else {
-                        // The next token is neither a {, [ or ", just push it to the new stack
-                        new_string.push_str(token);
-                        if i + 1 < tokens.len() && *tokens[i + 1] != end_char {
-                            new_string.push(' ');                   // Add space if its not the end char
-                        }
-                        i += 1;
-                    }
-                }
-                "[" => {
-                    // Almost identical to the { case
-                    if *token == "\"" || *token == "{" || *token == "[" {
-                        let mut sub_tokens = Vec::new();
+                        let mut sub_tokens = Vec::new();    // Sub tokens that we will send to the recursive call
                         sub_tokens.push(token.to_string());
-                        let mut j = i + 1;
-                        let sub_end_char = match *token {   //Update new end char 
-                            "\"" => "\"",
-                            "{" => "}",
-                            "[" => "]",
-                            _ => return Err(ParseError::FirstElemNotValid), // will not reach this
+                        let mut j = i + 1;                  // Keeps track of the sub tokens index
+                        let (sub_start_char, sub_end_char) = match *token {  // Set the end char for the nested element
+                            "\"" => ("\"","\""),
+                            "{" => ("{","}"),
+                            "[" => ("[","]"),
+                            _ => return Err(ParseError::FirstElemNotValid),
                         };
-                
-                        while let Some(token) = tokens.get(j) {
-                            // If list contains a assigned variable insert the value of that variable
-                            if var_and_fun.contains_key(token.clone()) {
-                                let value = var_and_fun.get(token.clone()).unwrap().clone();
+
+                        let mut nest_level = 1;
+                        let mut string_qoutes = 1;
+                        // Go through all the nested elements until the corresponding end char is found
+                        while let Some(sub_token) = tokens.get(j) {
+                            if var_and_fun.contains_key(sub_token.clone()) {    // If token is a symbol
+                                let value = var_and_fun.get(sub_token.clone()).unwrap().clone();
                                 sub_tokens.push(value.to_string());
                             } else {
-                                sub_tokens.push(token.to_string());
+                                sub_tokens.push(sub_token.to_string());         // otherwise push it normally
                             }
-                            if token.contains(sub_end_char) {
-                                break;
+                            if sub_token.contains(sub_start_char) && sub_start_char != "\"" {
+                                nest_level += 1;
+                            } else if sub_token.contains(sub_end_char) && sub_start_char != "\"" {
+                                if nest_level == 1 {
+                                    break;
+                                }
+                                nest_level -= 1;
+                            }
+                            // Strings does not allow nesting so need to be handled different from {} and []
+                            if sub_token.contains(sub_start_char)  && sub_start_char == "\"" {
+                                string_qoutes -= 1;
+                                if string_qoutes == 0 {
+                                    break;
+                                }
                             }
                             j += 1;
                         }
+                        // Need to turn the sub_tokens from type Vec<String> to Vec<&str> that op_enclosed takes
                         let sub_tokens_ref = sub_tokens.iter().map(AsRef::as_ref).collect::<Vec<&str>>();
                         let mut sub_stack: Stack = Vec::new();
-                        op_enclosed(&mut sub_stack, &sub_tokens_ref, token.to_string(), true, var_and_fun)?;
+                        // Recursive call with the new stack and the sub tokens
+                        op_enclosed(&mut sub_stack, &sub_tokens_ref, token.to_string(), false, var_and_fun)?;
+                        // { are of type VString and [ VLists so need to push to the correct variable
                         if let Some(value) = sub_stack.get(0) {
-                            new_elements.push(value.clone());
+                            if start_char == "{" {
+                                new_string.push_str(&format!("{} ", value.to_string()));
+                            } else {
+                                new_elements.push(value.clone());       // Vec type for VList
+                            }
                         }
                         i = j + 1;
-                    } else {
-                        // If list contains a assigned variable insert the value of that variable
-                        if var_and_fun.contains_key(token.clone()) {
-                            let value = var_and_fun.get(token.clone()).unwrap().clone();
-                            new_elements.push(value);
-                        } else {
-                            match V::from_string(token) {
-                                value => new_elements.push(value),
+                    } else {                                // No nested recursion only process the tokens
+                        if start_char == "{" {
+                            // Check if it contains a variable from the hashmap, if so insert its value
+                            if var_and_fun.contains_key(token.clone()) {
+                                let value = var_and_fun.get(token.clone()).unwrap().clone();
+                                new_string.push_str(value.to_string().as_str());
+                            } else {
+                                new_string.push_str(token);
+                            }
+                            // Space between the tokens in the codeblock 
+                            if *tokens[i + 1] != end_char {
+                                new_string.push(' ');
+                            }
+                        } else {    // Same as above but pushes to the vector new_elements
+                            if var_and_fun.contains_key(token.clone()) {
+                                let value = var_and_fun.get(token.clone()).unwrap().clone();
+                                new_elements.push(value);
+                            } else {
+                                match V::from_string(token) {
+                                    value => new_elements.push(value),
+                                }
                             }
                         }
                         i += 1;
                     }
                 }
-                _ => {
-                    i += 1;
-                }
+                _ => { }            // Never reaches this
             }
         }
     }
+    // Ensure that there was input entered after startind symbol and that the end_char is correct
     if index > 0 && tokens[index] == end_char {
+        // Format the token to be inserted correctly and use the correct either, new_string or new_elements
         match end_char.as_str() {
             "\"" => stack.insert(0, V::VString(format!("{}{}{}", start_char, new_string, end_char))),
             "]"  => stack.insert(0, V::VList(new_elements)),
@@ -801,11 +793,14 @@ pub fn op_enclosed(stack: &mut Stack, tokens: &[&str], starting_symbol: String, 
     } else {
         return Err(ParseError::MissingClosingQuote)
     }
+    // If it is called from the infix operator function process_next will be false
+    // It will also be false for all the recursive calls to op_enclosed
     if process_next {
         parser::process_tokens(&tokens[index + 1..], stack, var_and_fun)?;
     } 
     Ok(())
 }
+
 
 /// TODO DOES NOT HANDLE STRINGS AND LISTS INSIDE CODEBLOCKS CORRECTLY
 /// Helper function to parse the codeblock into a vector of tokens

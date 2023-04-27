@@ -241,7 +241,7 @@ fn print_bindings(stack: &mut Stack, tokens: &[&str], var_and_fun: &mut HashMap<
 /// Helper function to find the mathing end brace for the brace index it is sent as a parameter
 pub fn find_matching_brace(tokens: &[&str]) -> Option<usize> {
     let mut open_braces = 0;
-    // Go throught the remaining tokens
+    // Go through the remaining tokens
     for (i, token) in tokens.iter().enumerate() {
         if *token == "{" {
             open_braces += 1;       // Now needs to find and extra closing brace

@@ -76,7 +76,7 @@ fn main() {
                         stack.clear();
                     },
                     Err(_) => {
-                        println!("Filepath not found!");
+                        println!("Filepath not found! File must be in the folder 'bprog-interpreter'");
                     },
                 }
             }
