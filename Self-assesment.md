@@ -1,11 +1,9 @@
 ## The funcitonality of my program compared to the functional requirements:
 
-My program allows for almost everything that was specified in the file "Functional-requirements.md". The only limitations my program currently has and that I am looking to improve before the final delivery are: 
+My program passes all the tests that was provided for the rust implementation of the project, that can be found here: https://git.gvk.idi.ntnu.no/course/prog2006/prog2006-2023-labs/prog2006-assignment-2/-/tree/main/bprog-rust/tests
+I also added two tests myself, one for eval operator and one for the tick operator. All the functionalities specified by the functional requirements are implemented. The only thing that my implementation does not support is that when not running the program in 'repl' mode and not utilizing filemode. The input does not allow for writing on several lines with using enter, since right now enter signals the end of input and the input will be processed after pressing enter. This is however exactly why I added the support for filemode to my implementation. 
 
-- Does not support more than 2 layers of nesting for both lists and codeblocks.
-- When not running in 'repl' mode and not utilizing filemode. The input does not allow for writing on several lines with using enter, since right now enter signals the end of input and the input will be processed after pressing enter. 
-
-## The non-functional behaviour of my progra, compared to the non-functional requirements:
+## The non-functional behaviour of my program, compared to the non-functional requirements:
 
 - Performance
     - The interpreter does execute most operations with the acceptable response time specified.
@@ -48,4 +46,4 @@ Additionally I several times had to change the order of how the operation proces
 
 I learned a lot about documentation from the first assignment and I believe I have used this knowledge well for this assignment. The documentation is cleaner and more comprehensive than what I did for the last assignment. Additionally, I was better at doing commits during the entire development process, and not just try to simulate commits in the end like I did last time (because I had forgotten it during development of the first assignment). 
 
-One thing I that could be improved is the way I am passing the same arguments around all the time. Maybe just adding global variables would fix this and I will look into improving this for the final delivery of the portfolio. Some functions could probably be more conscise and shortened aswell. 
+One thing I that could be improved is the way I am passing the same arguments around all the time. Maybe just adding global variables would fix this and I will look into improving this for the final delivery of the portfolio. Some functions could probably be more conscise and shortened aswell and some extra helper functions where suitable would help the readability of the code.  

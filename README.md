@@ -43,12 +43,21 @@ For explanation on how each of these works see the operation manual in the file 
 
 5. Using Bprog
 
-To use the bprog-interpreter Interpreter, enter a series of tokens separated by whitespace. Tokens can be data types or operations.
+When providing input for the bprog-interpreter, you need to enter a series of tokens where each token is speparated with whitespace. Tokens can be data types or operations:
 
 Examples:
 
 "8 10 >" This will push 8 and 10 onto the stack and then check if 8 is larger than 10 and the resulting stack will be [ false ]
 "5 5 == if { 10 + } { 10 * }" Here we push to 5's onto the stack and then check if they are equal, which they are and the resulting stack is now "true". If checks the value on the stack, and if it is true performs the first codeblock and in the case of false performs the second codeblcok. So here the resulting stack will be [ 15 5 ]
+
+The main menu for the program will first be printed. here you have 5 different options:
+
+1. You can just enter the tokens right after starting the program. However, here you can only enter them on a single line because pressing enter will signal that you are finished with the input and start processing the tokens. 
+2. F/f (filemode) - Because of the issue mentioned above, there is support for filemode. There is a test file located in the folder 'bprog-interpreter' with some simple sample input. Simply type 'file-mode.txt' when prompted with the path to the file. 
+3. R/r (REPL-mode) - Here you can enter input to the interpreter and after processing one line of input, the stack is stored and you can continue to work on the same stack for as long as you wish!
+4. H/h - Simply show a message with the different options for the program.
+5. Q/q - Quits the program. 
+
 
 6. Advanced Features
 
@@ -70,7 +79,6 @@ If you encounter issues or errors while using the bprog-interpreter, there shoul
 You can also check the manual for operations located in the file "Operation-manual.md" for trubleshooting if there are issues with the operations. 
 
 8. Have fun with the bprog-interpreter!
-
 
 ## Other documentation files: 
 - Non-functional-requirements.md
